@@ -15,19 +15,65 @@ type TTracker =  ITracker<ITrackerEventsList>;
 
 type TIndex = number;
 type TId = number|string;
-type TVersion = number|string;
+
+interface IVersion {
+  changed: boolean;
+  memory?: any;
+}
 
 interface IItem {
   id: TId;
-  version: TVersion;
-  index: TIndex;
-  data: any;
+  version?: IVersion;
+  index?: TIndex;
+  data?: any;
+}
+
+interface ITrackerEventItemData {
+  id: TId;
+  changed?: boolean;
+  data?: any;
+  oldIndex?: TIndex;
+  newIndex?: TIndex;
+  tracker: TTracker;
 }
 
 interface ITrackerEventsList extends INodeEventsList {
+  added: ITrackerEventItemData;
+  changed: ITrackerEventItemData;
+  removed: ITrackerEventItemData;
+}
+
+interface ITrackingResults {
+  stop: ITrackingStop;
+  items: IItem[];
+}
+
+interface ITrackingStop {
+  (): void;
+}
+
+interface ITrackingStart {
+  (tracker: TTracker): Promise<ITrackingResults>;
 }
 
 interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEventsList> {
+  ids: TId[];
+  versions: { [id: string]: IVersion };
+
+  query: any;
+  start: ITrackingStart;
+  stop: ITrackingStop;
+  tracking: any;
+
+  add(item: IItem): void;
+  change(item: IItem): void;
+  remove(item: IItem): void;
+
+  override(items: IItem[]): void;
+  clean(): void;
+
+  resubscribe(query: any, start: ITrackingStart): Promise<IItem[]>;
+  unsubscribe(): Promise<void>;
 }
 
 function mixin<T extends TClass<IInstance>>(
@@ -38,10 +84,13 @@ function mixin<T extends TClass<IInstance>>(
     versions = {};
 
     query = null;
+    start = null;
+    stop = null;
     tracking: any;
 
     add(item) {
       const { id, version, index, data } = item;
+      const { changed } = version;
       this.versions[id] = version;
       this.ids.splice(index, 0, id);
 
@@ -49,7 +98,7 @@ function mixin<T extends TClass<IInstance>>(
       const newIndex = index;
 
       this.emit('added', {
-        id, version, data,
+        id, changed, data,
         oldIndex, newIndex,
         tracker: this,
       });
@@ -57,6 +106,7 @@ function mixin<T extends TClass<IInstance>>(
 
     change(item) {
       const { id, version, index, data } = item;
+      const { changed } = version;
       const oldIndex = this.ids.indexOf(id);
       const newIndex = index;
 
@@ -68,7 +118,7 @@ function mixin<T extends TClass<IInstance>>(
       this.versions[id] = version;
 
       this.emit('changed', {
-        id, version, data,
+        id, changed, data,
         oldIndex, newIndex,
         tracker: this,
       });
@@ -99,7 +149,7 @@ function mixin<T extends TClass<IInstance>>(
       _.each(items, (item) => {
         if (_.has(this.versions, item.id)) {
           if (
-            item.version !== this.versions[item.id] ||
+            item.version.changed ||
             item.index !== this.ids.indexOf(item.id)
           ) {
             this.change(item);
@@ -116,15 +166,21 @@ function mixin<T extends TClass<IInstance>>(
       });
     }
 
-    async resubscribe(query) {
+    async resubscribe(query, start) {
       this.query = query;
+      this.start = start;
       await this.unsubscribe();
+      const { stop, items } = await this.start(this);
+      this.stop = stop;
+      return items;
     }
-    async unsubscribe() {}
+    async unsubscribe() {
+      if (this.stop) await this.stop();
+    }
   };
 }
 
-const MixedTracker: TClass<ITracker<ITrackerEventsList>> = mixin(Node);
+const MixedTracker: TClass<TTracker> = mixin(Node);
 class Tracker extends MixedTracker {}
 
 export {
@@ -137,6 +193,10 @@ export {
   TTracker,
   TIndex,
   TId,
-  TVersion,
+  IVersion,
   IItem,
+  ITrackerEventItemData,
+  ITrackingStart,
+  ITrackingStop,
+  ITrackingResults,
 };
