@@ -28,24 +28,32 @@ interface IItem {
   data?: any;
 }
 
-interface ITrackerEventItemData {
+interface ITrackerEventData {
+  tracker: TTracker;
+}
+
+interface ITrackerEventTrackerData extends ITrackerEventData {
+  items?: IItem[];
+}
+
+interface ITrackerEventItemData extends ITrackerEventData {
   id: TId;
-  changed?: boolean;
   data?: any;
+  changed?: boolean;
   oldIndex?: TIndex;
   newIndex?: TIndex;
-  tracker: TTracker;
 }
 
 interface ITrackerEventsList extends INodeEventsList {
   added: ITrackerEventItemData;
   changed: ITrackerEventItemData;
   removed: ITrackerEventItemData;
+  subscribed: ITrackerEventTrackerData;
+  unsubscribed: ITrackerEventData;
 }
 
-interface ITrackingResults {
-  stop: ITrackingStop;
-  items: IItem[];
+interface ITrackingGetItems {
+  (tracker: TTracker): Promise<IItem[]>;
 }
 
 interface ITrackingStop {
@@ -53,7 +61,7 @@ interface ITrackingStop {
 }
 
 interface ITrackingStart {
-  (tracker: TTracker): Promise<ITrackingResults>;
+  (tracker: TTracker): Promise<ITrackingStop>;
 }
 
 interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEventsList> {
@@ -62,6 +70,7 @@ interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEvents
 
   query: any;
   start: ITrackingStart;
+  getItems: ITrackingGetItems;
   stop: ITrackingStop;
   tracking: any;
 
@@ -72,7 +81,11 @@ interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEvents
   override(items: IItem[]): void;
   clean(): void;
 
-  resubscribe(query: any, start: ITrackingStart): Promise<IItem[]>;
+  resubscribe(
+    query?: any,
+    getItems?: ITrackingGetItems,
+    start?: ITrackingStart,
+  ): Promise<IItem[]>;
   unsubscribe(): Promise<void>;
 }
 
@@ -80,6 +93,11 @@ function mixin<T extends TClass<IInstance>>(
   superClass: T,
 ): any {
   return class Tracker extends superClass {
+    constructor(...args: any[]) {
+      super(...args);
+      this.on('destroyed', () => this.unsubscribe());
+    }
+    
     ids = [];
     versions = {};
 
@@ -166,16 +184,30 @@ function mixin<T extends TClass<IInstance>>(
       });
     }
 
-    async resubscribe(query, start) {
+    async resubscribe(
+      query = this.query,
+      getItems = this.getItems,
+      start = this.start,
+    ) {
       this.query = query;
+      this.getItems = getItems;
       this.start = start;
+
       await this.unsubscribe();
-      const { stop, items } = await this.start(this);
-      this.stop = stop;
+
+      const items = await this.getItems(this);
+      this.emit('subscribed', { items, tracker: this });
+      this.override(items);
+      this.stop = await this.start(this);
+
       return items;
     }
+
     async unsubscribe() {
-      if (this.stop) await this.stop();
+      if (this.stop) {
+        await this.stop();
+        this.emit('unsubscribed', { tracker: this });
+      }
     }
   };
 }
@@ -195,8 +227,10 @@ export {
   TId,
   IVersion,
   IItem,
+  ITrackerEventData,
+  ITrackerEventTrackerData,
   ITrackerEventItemData,
+  ITrackingGetItems,
   ITrackingStart,
   ITrackingStop,
-  ITrackingResults,
 };

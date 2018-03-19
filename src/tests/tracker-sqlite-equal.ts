@@ -30,7 +30,7 @@ export default function () {
     it('resubscribe() added', async () => {
       await exec(`insert into test (key,value) values ${_.times(9, t => `(${t + 1},${t + 1})`)};`);
       
-      const { trackers, destroy, start } = createIterator(db,1);
+      const { trackers, destroy, getItems, start } = createIterator(db,1);
       const tracker = new Tracker();
 
       const events = [];
@@ -40,12 +40,18 @@ export default function () {
         sql: `select * from test;`,
         idField: 'key',
       };
-      const items = await tracker.resubscribe(query, start);
+      const items = await tracker.resubscribe(query, getItems, start);
+
+      await delay(5);
+
+      tracker.unsubscribe();
 
       await delay(5);
 
       assert.deepEqual(events, [
+        'subscribed',
         ..._.times(9, () => 'added'),
+        'unsubscribed',
       ]);
       assert.deepEqual(tracker.ids, [1,2,3,4,5,6,7,8,9]);
       assert.deepEqual(tracker.versions, {
@@ -66,7 +72,7 @@ export default function () {
     });
 
     it('insert update delete', async () => {
-      const { trackers, destroy, start } = createIterator(db,1);
+      const { trackers, destroy, getItems, start } = createIterator(db,1);
       const tracker = new Tracker();
 
       const events = [];
@@ -76,7 +82,7 @@ export default function () {
         sql: `select * from test where value > 2 and value < 8 order by value asc limit 2;`,
         idField: 'key',
       };
-      const items = await tracker.resubscribe(query, start);
+      const items = await tracker.resubscribe(query, getItems, start);
 
       await exec(`insert into test (key,value) values ${_.times(9, t => `(${t + 1},${t + 1})`)};`);
       await delay(5);
@@ -89,12 +95,18 @@ export default function () {
       await exec(`delete from test where key = 6;`);
       await delay(5);
 
+      tracker.unsubscribe();
+
+      await delay(5);
+
       assert.deepEqual(events, [
+        'subscribed',
         ..._.times(2, () => 'added'),
         'removed','added',
         'removed','added',
         'changed',
         'removed','added',
+        'unsubscribed',
       ]);
       assert.deepEqual(tracker.ids, [4,5]);
       assert.deepEqual(tracker.versions, {

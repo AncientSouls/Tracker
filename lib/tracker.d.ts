@@ -13,28 +13,34 @@ interface IItem {
     index?: TIndex;
     data?: any;
 }
-interface ITrackerEventItemData {
+interface ITrackerEventData {
+    tracker: TTracker;
+}
+interface ITrackerEventTrackerData extends ITrackerEventData {
+    items?: IItem[];
+}
+interface ITrackerEventItemData extends ITrackerEventData {
     id: TId;
-    changed?: boolean;
     data?: any;
+    changed?: boolean;
     oldIndex?: TIndex;
     newIndex?: TIndex;
-    tracker: TTracker;
 }
 interface ITrackerEventsList extends INodeEventsList {
     added: ITrackerEventItemData;
     changed: ITrackerEventItemData;
     removed: ITrackerEventItemData;
+    subscribed: ITrackerEventTrackerData;
+    unsubscribed: ITrackerEventData;
 }
-interface ITrackingResults {
-    stop: ITrackingStop;
-    items: IItem[];
+interface ITrackingGetItems {
+    (tracker: TTracker): Promise<IItem[]>;
 }
 interface ITrackingStop {
     (): void;
 }
 interface ITrackingStart {
-    (tracker: TTracker): Promise<ITrackingResults>;
+    (tracker: TTracker): Promise<ITrackingStop>;
 }
 interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEventsList> {
     ids: TId[];
@@ -43,6 +49,7 @@ interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEvents
     };
     query: any;
     start: ITrackingStart;
+    getItems: ITrackingGetItems;
     stop: ITrackingStop;
     tracking: any;
     add(item: IItem): void;
@@ -50,11 +57,11 @@ interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEvents
     remove(item: IItem): void;
     override(items: IItem[]): void;
     clean(): void;
-    resubscribe(query: any, start: ITrackingStart): Promise<IItem[]>;
+    resubscribe(query?: any, getItems?: ITrackingGetItems, start?: ITrackingStart): Promise<IItem[]>;
     unsubscribe(): Promise<void>;
 }
 declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
 declare const MixedTracker: TClass<TTracker>;
 declare class Tracker extends MixedTracker {
 }
-export { mixin as default, mixin, MixedTracker, Tracker, ITracker, ITrackerEventsList, TTracker, TIndex, TId, IVersion, IItem, ITrackerEventItemData, ITrackingStart, ITrackingStop, ITrackingResults };
+export { mixin as default, mixin, MixedTracker, Tracker, ITracker, ITrackerEventsList, TTracker, TIndex, TId, IVersion, IItem, ITrackerEventData, ITrackerEventTrackerData, ITrackerEventItemData, ITrackingGetItems, ITrackingStart, ITrackingStop };

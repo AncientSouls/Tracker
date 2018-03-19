@@ -31,7 +31,7 @@ function default_1() {
         }));
         it('resubscribe() added', () => __awaiter(this, void 0, void 0, function* () {
             yield exec(`insert into test (key,value) values ${_.times(9, t => `(${t + 1},${t + 1})`)};`);
-            const { trackers, destroy, start } = tracker_sqlite_equal_1.createIterator(db, 1);
+            const { trackers, destroy, getItems, start } = tracker_sqlite_equal_1.createIterator(db, 1);
             const tracker = new tracker_1.Tracker();
             const events = [];
             tracker.on('emit', ({ eventName }) => events.push(eventName));
@@ -39,10 +39,14 @@ function default_1() {
                 sql: `select * from test;`,
                 idField: 'key',
             };
-            const items = yield tracker.resubscribe(query, start);
+            const items = yield tracker.resubscribe(query, getItems, start);
+            yield delay(5);
+            tracker.unsubscribe();
             yield delay(5);
             chai_1.assert.deepEqual(events, [
+                'subscribed',
                 ..._.times(9, () => 'added'),
+                'unsubscribed',
             ]);
             chai_1.assert.deepEqual(tracker.ids, [1, 2, 3, 4, 5, 6, 7, 8, 9]);
             chai_1.assert.deepEqual(tracker.versions, {
@@ -60,7 +64,7 @@ function default_1() {
             destroy();
         }));
         it('insert update delete', () => __awaiter(this, void 0, void 0, function* () {
-            const { trackers, destroy, start } = tracker_sqlite_equal_1.createIterator(db, 1);
+            const { trackers, destroy, getItems, start } = tracker_sqlite_equal_1.createIterator(db, 1);
             const tracker = new tracker_1.Tracker();
             const events = [];
             tracker.on('emit', ({ eventName }) => events.push(eventName));
@@ -68,7 +72,7 @@ function default_1() {
                 sql: `select * from test where value > 2 and value < 8 order by value asc limit 2;`,
                 idField: 'key',
             };
-            const items = yield tracker.resubscribe(query, start);
+            const items = yield tracker.resubscribe(query, getItems, start);
             yield exec(`insert into test (key,value) values ${_.times(9, t => `(${t + 1},${t + 1})`)};`);
             yield delay(5);
             yield exec(`update test set value = 10 where key = 3;`);
@@ -79,12 +83,16 @@ function default_1() {
             yield delay(5);
             yield exec(`delete from test where key = 6;`);
             yield delay(5);
+            tracker.unsubscribe();
+            yield delay(5);
             chai_1.assert.deepEqual(events, [
+                'subscribed',
                 ..._.times(2, () => 'added'),
                 'removed', 'added',
                 'removed', 'added',
                 'changed',
                 'removed', 'added',
+                'unsubscribed',
             ]);
             chai_1.assert.deepEqual(tracker.ids, [4, 5]);
             chai_1.assert.deepEqual(tracker.versions, {

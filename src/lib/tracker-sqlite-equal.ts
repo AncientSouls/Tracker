@@ -4,40 +4,42 @@ import { Database } from 'sqlite3';
 
 import {
   TTracker,
+  ITrackingGetItems,
   ITrackingStart,
   ITrackingStop,
-  ITrackingResults,
   IItem,
 } from './tracker';
 
 interface IIteratorResult {
+  getItems: ITrackingGetItems;
   start: ITrackingStart;
   trackers: TTracker[];
   destroy: () => void;
 }
 
-const getItems = (db, tracker): Promise<IItem[]> => {
+const toItem = (data, index, idField, tracker) => {
+  const id = data[idField];
+  const oldVersion = tracker.versions[data[idField]];
+  const ch = !_.isEqual(data, (oldVersion || {}).memory);
+  return {
+    id,
+    data,
+    index,
+    version: {
+      memory: data,
+      changed: ch,
+    },
+  };
+};
+
+const getItems = (db, tracker): Promise<any[]> => {
   return new Promise((resolve) => {
     tracker.query = tracker.query || {};
     let { idField } = tracker.query;
     idField = idField || 'id';
     db.all(tracker.query.sql, (error, rows) => {
-      const items = _.map(rows, (row, i) => {
-        const id = row[idField];
-        const oldVersion = tracker.versions[row[idField]];
-        const ch = !_.isEqual(row, (oldVersion || {}).memory);
-        return {
-          id,
-          version: {
-            memory: row,
-            changed: ch,
-          },
-          index: i,
-          data: row,
-        };
-      });
+      const items = _.map(rows, (row, i) => toItem(row, i, idField, tracker));
       resolve(items);
-      tracker.override(items);
     });
   });
 };
@@ -48,7 +50,9 @@ const createIterator = (
 ): IIteratorResult => {
   const trackers = [];
   const interval = setInterval(
-    () => _.each(trackers, tracker => getItems(db, tracker)),
+    () => _.each(trackers, async (tracker) => {
+      tracker.override(await getItems(db, tracker));
+    }),
     time,
   );
   const destroy = () => clearInterval(interval);
@@ -58,13 +62,14 @@ const createIterator = (
     };
     stop();
     trackers.push(newTracker);
-    const items = await getItems(db, newTracker);
-    return { items, stop };
+    return stop;
   };
-  return { trackers, destroy, start };
+  const get = tracker => getItems(db, tracker);
+  return { trackers, destroy, start, getItems: get };
 };
 
 export {
+  toItem,
   getItems,
   createIterator,
   IIteratorResult,

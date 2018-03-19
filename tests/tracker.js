@@ -4,6 +4,7 @@ const chai_1 = require("chai");
 const _ = require("lodash");
 const chance = require('chance').Chance();
 const tracker_1 = require("../lib/tracker");
+const stress_1 = require("./stress");
 function default_1() {
     describe('Tracker:', () => {
         it('add() added', () => {
@@ -129,24 +130,6 @@ function default_1() {
             chai_1.assert.deepEqual(tracker.ids, []);
             chai_1.assert.deepEqual(tracker.versions, {});
         });
-        const stress = (insert, update, remove, times = 1000, chances = [2, 3, 1]) => {
-            let counter = 0;
-            _.times(times, () => {
-                const action = chance.weighted(['insert', 'update', 'remove'], chances);
-                if (action === 'insert') {
-                    counter++;
-                    return insert();
-                }
-                if (action === 'update' && counter) {
-                    return update();
-                }
-                if (action === 'remove' && counter) {
-                    counter--;
-                    return remove();
-                }
-                insert();
-            });
-        };
         it('override() stress', () => {
             const tracker = new tracker_1.Tracker();
             const base = [];
@@ -155,24 +138,19 @@ function default_1() {
                     id: b.id, version: { changed: true }, index: i, data: b,
                 })));
             };
-            const count = { insert: 0, update: 0, remove: 0 };
-            stress(() => {
-                count.insert++;
+            stress_1.stress(() => {
                 base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
                 override();
             }, () => {
-                count.update++;
                 const oldIndex = _.random(0, base.length - 1);
                 const newIndex = _.random(0, base.length - 1);
                 base.splice(newIndex, 0, base.splice(oldIndex, 1)[0]);
                 override();
             }, () => {
-                count.remove++;
                 const oldIndex = _.random(0, base.length - 1);
                 base.splice(oldIndex, 1);
                 override();
             });
-            console.log(count);
             chai_1.assert.deepEqual(tracker.ids, _.map(base, b => b.id));
         });
     });
