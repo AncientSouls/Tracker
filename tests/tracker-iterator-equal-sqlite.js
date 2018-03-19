@@ -11,7 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const _ = require("lodash");
 const sqlite3 = require('sqlite3').verbose();
-const tracker_sqlite_equal_1 = require("../lib/tracker-sqlite-equal");
+const tracker_iterator_equal_sqlite_1 = require("../lib/tracker-iterator-equal-sqlite");
 const tracker_1 = require("../lib/tracker");
 const delay = time => new Promise(resolve => setTimeout(resolve, time));
 function default_1() {
@@ -31,7 +31,7 @@ function default_1() {
         }));
         it('resubscribe() added', () => __awaiter(this, void 0, void 0, function* () {
             yield exec(`insert into test (key,value) values ${_.times(9, t => `(${t + 1},${t + 1})`)};`);
-            const { trackers, destroy, getItems, start } = tracker_sqlite_equal_1.createIterator(db, 1);
+            const { trackers, destroy, getItems, start } = tracker_iterator_equal_sqlite_1.createIterator(db, 1);
             const tracker = new tracker_1.Tracker();
             const events = [];
             tracker.on('emit', ({ eventName }) => events.push(eventName));
@@ -64,7 +64,7 @@ function default_1() {
             destroy();
         }));
         it('insert update delete', () => __awaiter(this, void 0, void 0, function* () {
-            const { trackers, destroy, getItems, start } = tracker_sqlite_equal_1.createIterator(db, 1);
+            const { trackers, destroy, getItems, start } = tracker_iterator_equal_sqlite_1.createIterator(db, 1);
             const tracker = new tracker_1.Tracker();
             const events = [];
             tracker.on('emit', ({ eventName }) => events.push(eventName));
@@ -105,4 +105,4 @@ function default_1() {
     });
 }
 exports.default = default_1;
-//# sourceMappingURL=tracker-sqlite-equal.js.map
+//# sourceMappingURL=tracker-iterator-equal-sqlite.js.map

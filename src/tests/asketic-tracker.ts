@@ -4,7 +4,7 @@ const chance = require('chance').Chance();
 
 import { Tracker } from '../lib/tracker';
 import { AsketicTracker } from '../lib/asketic-tracker';
-import { toItem } from '../lib/tracker-sqlite-equal';
+import { toItem } from '../lib/tracker-iterator-equal';
 
 import { stress } from './stress';
 
@@ -48,7 +48,7 @@ export default function () {
             const items = await tracker.resubscribe(
               _.get(flow, 'schema.query'),
               async () => _.map(base, (b,i) => toItem(b,i, 'id', tracker)),
-              async () => () => null,
+              async () => () => null, // <- pseudo start and stop
             );
             const data = _.map(items, i => i.data);
             return { tracker, data };
@@ -56,6 +56,8 @@ export default function () {
           return {};
         },
       );
+
+      await delay(5);
 
       asketicTracker.destroy();
       

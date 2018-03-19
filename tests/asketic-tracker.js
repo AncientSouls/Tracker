@@ -13,7 +13,7 @@ const _ = require("lodash");
 const chance = require('chance').Chance();
 const tracker_1 = require("../lib/tracker");
 const asketic_tracker_1 = require("../lib/asketic-tracker");
-const tracker_sqlite_equal_1 = require("../lib/tracker-sqlite-equal");
+const tracker_iterator_equal_1 = require("../lib/tracker-iterator-equal");
 const delay = time => new Promise(resolve => setTimeout(resolve, time));
 function default_1() {
     describe('AsketicTracker:', () => {
@@ -45,12 +45,13 @@ function default_1() {
             }, (flow) => __awaiter(this, void 0, void 0, function* () {
                 if (_.get(flow, 'schema.name') === 'query') {
                     const tracker = new tracker_1.Tracker();
-                    const items = yield tracker.resubscribe(_.get(flow, 'schema.query'), () => __awaiter(this, void 0, void 0, function* () { return _.map(base, (b, i) => tracker_sqlite_equal_1.toItem(b, i, 'id', tracker)); }), () => __awaiter(this, void 0, void 0, function* () { return () => null; }));
+                    const items = yield tracker.resubscribe(_.get(flow, 'schema.query'), () => __awaiter(this, void 0, void 0, function* () { return _.map(base, (b, i) => tracker_iterator_equal_1.toItem(b, i, 'id', tracker)); }), () => __awaiter(this, void 0, void 0, function* () { return () => null; }));
                     const data = _.map(items, i => i.data);
                     return { tracker, data };
                 }
                 return {};
             }));
+            yield delay(5);
             asketicTracker.destroy();
             chai_1.assert.deepEqual(events, [
                 'tracked',
@@ -103,7 +104,7 @@ function default_1() {
             }, (flow) => __awaiter(this, void 0, void 0, function* () {
                 if (_.get(flow, 'schema.name') === 'query') {
                     const tracker = new tracker_1.Tracker();
-                    const items = yield tracker.resubscribe(_.get(flow, 'schema.query'), () => __awaiter(this, void 0, void 0, function* () { return _.map(base, (b, i) => tracker_sqlite_equal_1.toItem(b, i, 'id', tracker)); }), (tracker) => __awaiter(this, void 0, void 0, function* () {
+                    const items = yield tracker.resubscribe(_.get(flow, 'schema.query'), () => __awaiter(this, void 0, void 0, function* () { return _.map(base, (b, i) => tracker_iterator_equal_1.toItem(b, i, 'id', tracker)); }), (tracker) => __awaiter(this, void 0, void 0, function* () {
                         trackers.push(tracker);
                         return () => _.remove(trackers, t => t.id === tracker.id);
                     }));
@@ -121,7 +122,7 @@ function default_1() {
                 })),
             });
             const override = () => {
-                _.each(trackers, tracker => tracker.override(_.map(base, (b, i) => tracker_sqlite_equal_1.toItem(b, i, 'id', tracker))));
+                _.each(trackers, tracker => tracker.override(_.map(base, (b, i) => tracker_iterator_equal_1.toItem(b, i, 'id', tracker))));
             };
             const insert = () => __awaiter(this, void 0, void 0, function* () {
                 yield delay(5);

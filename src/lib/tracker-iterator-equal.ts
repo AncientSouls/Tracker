@@ -1,6 +1,5 @@
 import { assert } from 'chai';
 import * as _ from 'lodash';
-import { Database } from 'sqlite3';
 
 import {
   TTracker,
@@ -15,6 +14,10 @@ interface IIteratorResult {
   start: ITrackingStart;
   trackers: TTracker[];
   destroy: () => void;
+}
+
+interface IIteratorEqualFetch {
+  (tracker: TTracker): Promise<any[]>;
 }
 
 const toItem = (data, index, idField, tracker) => {
@@ -32,26 +35,26 @@ const toItem = (data, index, idField, tracker) => {
   };
 };
 
-const getItems = (db, tracker): Promise<any[]> => {
+const getItems = (fetch, tracker): Promise<any[]> => {
   return new Promise((resolve) => {
     tracker.query = tracker.query || {};
     let { idField } = tracker.query;
     idField = idField || 'id';
-    db.all(tracker.query.sql, (error, rows) => {
-      const items = _.map(rows, (row, i) => toItem(row, i, idField, tracker));
+    fetch(tracker).then((data) => {
+      const items = _.map(data, (d, i) => toItem(d, i, idField, tracker));
       resolve(items);
     });
   });
 };
 
 const createIterator = (
-  db: Database,
+  fetch: IIteratorEqualFetch,
   time: number = 25,
 ): IIteratorResult => {
   const trackers = [];
   const interval = setInterval(
     () => _.each(trackers, async (tracker) => {
-      tracker.override(await getItems(db, tracker));
+      tracker.override(await getItems(fetch, tracker));
     }),
     time,
   );
@@ -64,7 +67,7 @@ const createIterator = (
     trackers.push(newTracker);
     return stop;
   };
-  const get = tracker => getItems(db, tracker);
+  const get = tracker => getItems(fetch, tracker);
   return { trackers, destroy, start, getItems: get };
 };
 
@@ -73,4 +76,5 @@ export {
   getItems,
   createIterator,
   IIteratorResult,
+  IIteratorEqualFetch,
 };

@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import { Database } from 'sqlite3';
 const sqlite3 = require('sqlite3').verbose();
 
-import { createIterator } from '../lib/tracker-sqlite-equal';
+import { createIterator } from '../lib/tracker-iterator-equal-sqlite';
 import { Tracker } from '../lib/tracker';
 
 const delay = time => new Promise(resolve => setTimeout(resolve, time));
