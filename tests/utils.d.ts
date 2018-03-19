@@ -1,0 +1,14 @@
+import { Database } from 'sqlite3';
+import { ITrackerItem, ITrackerStart } from '../lib/tracker';
+import { IAsketicTrackerAsk } from '../lib/asketic-tracker';
+import { IQuery } from 'ancient-asket/lib/asket';
+declare const startDb: () => Promise<Database>;
+declare const stopDb: (db: any) => Promise<void>;
+declare const delay: (t: any) => Promise<void>;
+declare const exec: (db: any, sql: any) => Promise<void>;
+declare const fetch: (db: any, sql: any) => Promise<any[]>;
+declare const fetchAndOverride: (db: any, sql: any, tracker: any) => Promise<void>;
+declare const newTrackerStart: (db: Database, sql: string, time: number) => ITrackerStart;
+declare const newAsketicTrackerStart: (db: Database, query: IQuery) => IAsketicTrackerAsk;
+declare const toItem: (data: any, newIndex: any, idField: any, tracker: any) => ITrackerItem;
+export { startDb, stopDb, delay, exec, fetch, fetchAndOverride, newTrackerStart, newAsketicTrackerStart, toItem };

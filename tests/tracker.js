@@ -1,158 +1,93 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const _ = require("lodash");
-const chance = require('chance').Chance();
 const tracker_1 = require("../lib/tracker");
-const stress_1 = require("./stress");
+const utils_1 = require("./utils");
 function default_1() {
     describe('Tracker:', () => {
-        it('add() added', () => {
+        it('lifecycle', () => __awaiter(this, void 0, void 0, function* () {
+            const db = yield utils_1.startDb();
             const tracker = new tracker_1.Tracker();
             const events = [];
             tracker.on('emit', ({ eventName }) => events.push(eventName));
-            tracker.once('added', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 1, changed: true, data: 1, oldIndex: -1, newIndex: 0,
-                });
+            const s1 = `select * from test where v > 2 and v < 8 order by v asc limit 2`;
+            const s2 = `select * from test where v > 2 and v < 8 order by v desc limit 2`;
+            tracker.init(utils_1.newTrackerStart(db, s1, 1));
+            yield utils_1.exec(db, `create table test (id integer primary key autoincrement, v integer);`);
+            yield utils_1.exec(db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
+            yield tracker.subscribe();
+            chai_1.assert.deepEqual(tracker.ids, [3, 4]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                3: { id: 3, v: 3 },
+                4: { id: 4, v: 4 },
             });
-            tracker.add({ id: 1, version: { changed: true }, index: 0, data: 1 });
-            tracker.once('added', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 2, changed: true, data: 2, oldIndex: -1, newIndex: 1,
-                });
+            yield utils_1.exec(db, `update test set v = 6 where id = 3`);
+            yield utils_1.delay(3);
+            chai_1.assert.deepEqual(tracker.ids, [4, 5]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, v: 4 },
+                5: { id: 5, v: 5 },
             });
-            tracker.add({ id: 2, version: { changed: true }, index: 1, data: 2 });
-            tracker.once('added', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 3, changed: true, data: 3, oldIndex: -1, newIndex: 0,
-                });
+            yield utils_1.exec(db, `update test set v = 3 where id = 5`);
+            yield utils_1.delay(3);
+            chai_1.assert.deepEqual(tracker.ids, [5, 4]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, v: 4 },
+                5: { id: 5, v: 3 },
             });
-            tracker.add({ id: 3, version: { changed: true }, index: 0, data: 3 });
-            chai_1.assert.deepEqual(events, ['added', 'added', 'added']);
-            chai_1.assert.deepEqual(tracker.ids, [3, 1, 2]);
-            chai_1.assert.deepEqual(tracker.versions, {
-                1: { changed: true },
-                2: { changed: true },
-                3: { changed: true },
+            yield utils_1.exec(db, `update test set v = 5 where id = 5`);
+            yield utils_1.delay(3);
+            chai_1.assert.deepEqual(tracker.ids, [4, 5]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, v: 4 },
+                5: { id: 5, v: 5 },
             });
-        });
-        it('change() changed', () => {
-            const tracker = new tracker_1.Tracker();
-            tracker.add({ id: 1, version: { changed: true }, index: 0, data: 1 });
-            tracker.add({ id: 2, version: { changed: true }, index: 1, data: 2 });
-            tracker.add({ id: 3, version: { changed: true }, index: 0, data: 3 });
-            const events = [];
-            tracker.on('emit', ({ eventName }) => events.push(eventName));
-            tracker.once('changed', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 1, changed: true, data: 4, oldIndex: 1, newIndex: 2,
-                });
+            yield tracker.unsubscribe();
+            chai_1.assert.deepEqual(tracker.ids, [4, 5]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                4: { id: 4, v: 4 },
+                5: { id: 5, v: 5 },
             });
-            tracker.change({ id: 1, version: { changed: true }, index: 2, data: 4 });
-            chai_1.assert.deepEqual(events, ['changed']);
-            chai_1.assert.deepEqual(tracker.ids, [3, 2, 1]);
-            chai_1.assert.deepEqual(tracker.versions, {
-                1: { changed: true },
-                2: { changed: true },
-                3: { changed: true },
+            tracker.init(utils_1.newTrackerStart(db, s2, 1));
+            yield tracker.subscribe();
+            chai_1.assert.deepEqual(tracker.ids, [7, 3]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                7: { id: 7, v: 7 },
+                3: { id: 3, v: 6 },
             });
-        });
-        it('remove() removed', () => {
-            const tracker = new tracker_1.Tracker();
-            tracker.add({ id: 1, version: { changed: true }, index: 0, data: 1 });
-            tracker.add({ id: 2, version: { changed: true }, index: 1, data: 2 });
-            tracker.add({ id: 3, version: { changed: true }, index: 0, data: 3 });
-            const events = [];
-            tracker.on('emit', ({ eventName }) => events.push(eventName));
-            tracker.once('removed', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 1, oldIndex: 1, newIndex: -1,
-                });
+            yield tracker.unsubscribe();
+            tracker.destroy();
+            chai_1.assert.deepEqual(tracker.ids, [7, 3]);
+            chai_1.assert.deepEqual(tracker.memory, {
+                7: { id: 7, v: 7 },
+                3: { id: 3, v: 6 },
             });
-            tracker.remove({ id: 1 });
-            chai_1.assert.deepEqual(events, ['removed']);
-            chai_1.assert.deepEqual(tracker.ids, [3, 2]);
-            chai_1.assert.deepEqual(tracker.versions, {
-                2: { changed: true },
-                3: { changed: true },
-            });
-        });
-        it('override() removed changed added', () => {
-            const tracker = new tracker_1.Tracker();
-            tracker.add({ id: 1, version: { changed: true }, index: 0, data: 1 });
-            tracker.add({ id: 2, version: { changed: true }, index: 1, data: 2 });
-            tracker.add({ id: 3, version: { changed: true }, index: 0, data: 3 });
-            const events = [];
-            tracker.on('emit', ({ eventName }) => events.push(eventName));
-            tracker.once('removed', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 1, oldIndex: 1, newIndex: -1,
-                });
-            });
-            tracker.once('changed', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 2, changed: true, data: 5, oldIndex: 1, newIndex: 0,
-                });
-                tracker.once('changed', (data) => {
-                    chai_1.assert.deepEqual(data, {
-                        tracker, id: 3, changed: true, data: 3, oldIndex: 1, newIndex: 1,
-                    });
-                });
-            });
-            tracker.once('added', (data) => {
-                chai_1.assert.deepEqual(data, {
-                    tracker, id: 4, changed: true, data: 4, oldIndex: -1, newIndex: 2,
-                });
-            });
-            tracker.override([
-                { id: 2, version: { changed: true }, index: 0, data: 5 },
-                { id: 3, version: { changed: true }, index: 1, data: 3 },
-                { id: 4, version: { changed: true }, index: 2, data: 4 },
-            ]);
-            chai_1.assert.deepEqual(events, ['removed', 'changed', 'changed', 'added']);
-            chai_1.assert.deepEqual(tracker.ids, [2, 3, 4]);
-            chai_1.assert.deepEqual(tracker.versions, {
-                2: { changed: true },
-                3: { changed: true },
-                4: { changed: true },
-            });
-        });
-        it('clean() removed', () => {
-            const tracker = new tracker_1.Tracker();
-            tracker.add({ id: 1, version: { changed: true }, index: 0, data: 1 });
-            tracker.add({ id: 2, version: { changed: true }, index: 1, data: 2 });
-            tracker.add({ id: 3, version: { changed: true }, index: 0, data: 3 });
-            const events = [];
-            tracker.on('emit', ({ eventName }) => events.push(eventName));
             tracker.clean();
-            chai_1.assert.deepEqual(events, ['removed', 'removed', 'removed']);
             chai_1.assert.deepEqual(tracker.ids, []);
-            chai_1.assert.deepEqual(tracker.versions, {});
-        });
-        it('override() stress', () => {
-            const tracker = new tracker_1.Tracker();
-            const base = [];
-            const override = () => {
-                tracker.override(_.map(base, (b, i) => ({
-                    id: b.id, version: { changed: true }, index: i, data: b,
-                })));
-            };
-            stress_1.stress(() => {
-                base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
-                override();
-            }, () => {
-                const oldIndex = _.random(0, base.length - 1);
-                const newIndex = _.random(0, base.length - 1);
-                base.splice(newIndex, 0, base.splice(oldIndex, 1)[0]);
-                override();
-            }, () => {
-                const oldIndex = _.random(0, base.length - 1);
-                base.splice(oldIndex, 1);
-                override();
-            });
-            chai_1.assert.deepEqual(tracker.ids, _.map(base, b => b.id));
-        });
+            chai_1.assert.deepEqual(tracker.memory, {});
+            yield utils_1.delay(3);
+            yield utils_1.stopDb(db);
+            chai_1.assert.deepEqual(events, [
+                'added', 'added',
+                'subscribed',
+                'removed', 'added',
+                'changed', 'changed', 'changed',
+                'unsubscribed',
+                'removed', 'removed',
+                'added', 'added',
+                'subscribed',
+                'unsubscribed', 'destroyed',
+            ]);
+        }));
     });
 }
 exports.default = default_1;

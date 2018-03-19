@@ -1,208 +1,94 @@
 import { assert } from 'chai';
 import * as _ from 'lodash';
-const chance = require('chance').Chance();
 
-import { Tracker } from '../lib/tracker';
 import { AsketicTracker } from '../lib/asketic-tracker';
-import { toItem } from '../lib/tracker-iterator-equal';
 
-import { stress } from './stress';
-
-const delay = time => new Promise(resolve => setTimeout(resolve, time));
+import {
+  startDb,
+  stopDb,
+  delay,
+  exec,
+  fetch,
+  fetchAndOverride,
+  newAsketicTrackerStart,
+  toItem,
+} from './utils';
 
 export default function () {
   describe('AsketicTracker:', () => {
-    it('asketic tracking static', async () => {
-      const base = [];
-      _.times(3, () => {
-        base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
-      });
+    it('lifecycle', async () => {
+      const db = await startDb();
+      const tracker = new AsketicTracker();
 
-      const asketicTracker = new AsketicTracker();
-
-      const events = [];
-      asketicTracker.on('emit', ({ eventName }) => events.push(eventName));
-
-      const results = await asketicTracker.resubscribe(
-        {
-          schema: {
-            fields: {
-              x: {
-                name: 'query',
-                fields: {
-                  name: {},
-                  y: {
-                    name: 'query',
-                    fields: {
-                      age: {},
-                    },
-                  },
-                },
+      const query = {
+        schema: {
+          name: 'select',
+          options: {
+            sql: `select * from test where v > 2 and v < 8 order by v asc limit 2;`,
+          },
+          fields: {
+            v: {},
+            next: {
+              name: 'select',
+              options: {
+                sql: `select * from test where v = <%= v+1 %>;`,
+              },
+              fields: {
+                v: {},
               },
             },
           },
         },
-        async (flow) => {
-          if (_.get(flow, 'schema.name') === 'query') {
-            const tracker = new Tracker();
-            const items = await tracker.resubscribe(
-              _.get(flow, 'schema.query'),
-              async () => _.map(base, (b,i) => toItem(b,i, 'id', tracker)),
-              async () => () => null, // <- pseudo start and stop
-            );
-            const data = _.map(items, i => i.data);
-            return { tracker, data };
-          }
-          return {};
-        },
-      );
+      };
 
-      await delay(5);
+      tracker.init(newAsketicTrackerStart(db, query));
 
-      asketicTracker.destroy();
+      await exec(db, `create table test (id integer primary key autoincrement, v integer);`);
+      await exec(db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
+
+      let results;
+      tracker.on('added', ({ item, result, path }) => {
+        _.get(results.data, path, results.data).splice(item.newIndex, 0, result.data);
+      });
+      tracker.on('changed', ({ item, result, path }) => {
+        _.get(results.data, path, results.data).splice(item.oldIndex, 1);
+        _.get(results.data, path, results.data).splice(item.newIndex, 0, result.data);
+      });
+      tracker.on('removed', ({ item, path }) => {
+        _.get(results.data, path, results.data).splice(item.oldIndex, 1);
+      });
+      results = await tracker.subscribe();
       
-      assert.deepEqual(events, [
-        'tracked',
-        'tracked',
-        'tracked',
-        'tracked',
-        'subscribed',
-        'untracked',
-        'untracked',
-        'untracked',
-        'untracked',
-        'unsubscribed',
-        'destroyed',
-      ]);
+      assert.deepEqual(results.data, _.times(2, t => ({
+        v: t + 3,
+        next: [{ v: t + 4 }],
+      })));
 
-      assert.deepEqual(
-        results.data,
-        {
-          x: _.map(base, b => ({
-            name: b.name,
-            y: _.map(base, b => ({
-              age: b.age,
-            })),
-          })),
-        },
-      );
-    });
+      await exec(db, `update test set v = 6 where id = 3`);
 
-    it('asketic tracking events', async () => {
-      const base = [];
-      _.times(3, () => {
-        base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
-      });
-
-      const asketicTracker = new AsketicTracker();
-
-      const events = [];
-      asketicTracker.on('emit', ({ eventName }) => events.push(eventName));
-
-      const trackers = [];
-      const results = await asketicTracker.resubscribe(
-        {
-          schema: {
-            fields: {
-              x: {
-                name: 'query',
-                fields: {
-                  name: {},
-                  y: {
-                    name: 'query',
-                    fields: {
-                      age: {},
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-        async (flow) => {
-          if (_.get(flow, 'schema.name') === 'query') {
-            const tracker = new Tracker();
-            const items = await tracker.resubscribe(
-              _.get(flow, 'schema.query'),
-              async () => _.map(base, (b,i) => toItem(b,i, 'id', tracker)),
-              async (tracker) => {
-                trackers.push(tracker);
-                return () => _.remove(trackers, t => t.id === tracker.id);
-              },
-            );
-            const data = _.map(items, i => i.data);
-            return { tracker, data };
-          }
-          return {};
-        },
-      );
-
-      assert.deepEqual(
-        results.data,
-        {
-          x: _.map(base, b => ({
-            name: b.name,
-            y: _.map(base, b => ({
-              age: b.age,
-            })),
-          })),
-        },
-      );
-
-      const override = () => {
-        _.each(trackers, tracker => tracker.override(
-          _.map(base, (b,i) => toItem(b,i, 'id', tracker)),
-        ));
-      };
-
-      const insert = async () => {
-        await delay(5);
-        base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
-        override();
-      };
-      const update = async (
-        oldIndex = _.random(0, base.length - 1),
-        newIndex = _.random(0, base.length - 1),
-      ) => {
-        await delay(5);
-        base.splice(newIndex, 0, base.splice(oldIndex, 1)[0]);
-        override();
-      };
-      const remove = async () => {
-        await delay(5);
-        const oldIndex = _.random(0, base.length - 1);
-        base.splice(oldIndex, 1);
-        override();
-      };
-
-      await insert();
-      await insert();
-      await update(4,2);
-      await update(1,3);
       await delay(5);
-      asketicTracker.destroy();
+      
+      assert.deepEqual(results.data, _.times(2, t => ({
+        v: t + 4,
+        next: _.times(t ? 2 : 1, d => ({ v: t + 5 })),
+      })));
+
+      await exec(db, `update test set v = 7 where id = 6`);
+
+      await delay(5);
+      
+      assert.deepEqual(results.data, _.times(2, t => ({
+        v: t + 4,
+        next: [{ v: t + 5 }],
+      })));
+
+      await tracker.unsubscribe();
+
       await delay(5);
 
-      assert.deepEqual(events, [
-        ..._.times(4, () => 'tracked'),
-        ..._.times(1, () => 'subscribed'),
+      await stopDb(db);
 
-        ..._.times(1, () => 'tracked'),
-        ..._.times(4, () => 'added'),
-
-        ..._.times(1, () => 'tracked'),
-        ..._.times(5, () => 'added'),
-
-        ..._.times(1, () => 'tracked'),
-        ..._.times(6, () => 'changed'),
-
-        ..._.times(2, () => 'tracked'),
-        ..._.times(14, () => 'changed'),
-
-        ..._.times(9, () => 'untracked'),
-        ..._.times(1, () => 'unsubscribed'),
-        ..._.times(1, () => 'destroyed'),
-      ]);
+      assert.deepEqual(tracker.trackers, []);
     });
   });
 }

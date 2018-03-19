@@ -13,79 +13,55 @@ import {
 
 type TTracker =  ITracker<ITrackerEventsList>;
 
-type TIndex = number;
-type TId = number|string;
-
-interface IVersion {
-  changed: boolean;
-  memory?: any;
-}
-
-interface IItem {
-  id: TId;
-  version?: IVersion;
-  index?: TIndex;
+interface ITrackerItem {
+  id: string;
   data?: any;
+  oldIndex?: number;
+  newIndex?: number;
+  memory?: any;
+  changed?: boolean;
+  tracker?: TTracker;
 }
 
 interface ITrackerEventData {
-  tracker: TTracker;
-}
-
-interface ITrackerEventTrackerData extends ITrackerEventData {
-  items?: IItem[];
-}
-
-interface ITrackerEventItemData extends ITrackerEventData {
-  id: TId;
-  data?: any;
-  changed?: boolean;
-  oldIndex?: TIndex;
-  newIndex?: TIndex;
+  tracker?: TTracker;
 }
 
 interface ITrackerEventsList extends INodeEventsList {
-  added: ITrackerEventItemData;
-  changed: ITrackerEventItemData;
-  removed: ITrackerEventItemData;
-  subscribed: ITrackerEventTrackerData;
+  added: ITrackerItem;
+  changed: ITrackerItem;
+  removed: ITrackerItem;
+  subscribed: ITrackerEventData;
   unsubscribed: ITrackerEventData;
 }
 
-interface ITrackingGetItems {
-  (tracker: TTracker): Promise<IItem[]>;
+interface ITrackerStop {
+  (): Promise<void>;
 }
 
-interface ITrackingStop {
-  (): void;
-}
-
-interface ITrackingStart {
-  (tracker: TTracker): Promise<ITrackingStop>;
+interface ITrackerStart {
+  (tracker: TTracker): Promise<ITrackerStop>;
 }
 
 interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEventsList> {
-  ids: TId[];
-  versions: { [id: string]: IVersion };
+  ids: string[];
+  memory: { [id: string]: any };
+  isStarted: boolean;
+  needUnsubscribe: boolean;
 
-  query: any;
-  start: ITrackingStart;
-  getItems: ITrackingGetItems;
-  stop: ITrackingStop;
-  tracking: any;
+  start?: ITrackerStart;
+  stop?: ITrackerStop;
 
-  add(item: IItem): void;
-  change(item: IItem): void;
-  remove(item: IItem): void;
+  add(item: ITrackerItem): void;
+  change(item: ITrackerItem): void;
+  remove(item: ITrackerItem): void;
 
-  override(items: IItem[]): void;
+  override(items: ITrackerItem[]): void;
   clean(): void;
 
-  resubscribe(
-    query?: any,
-    getItems?: ITrackingGetItems,
-    start?: ITrackingStart,
-  ): Promise<IItem[]>;
+  init(start?: ITrackerStart): this;
+
+  subscribe(): Promise<void>;
   unsubscribe(): Promise<void>;
 }
 
@@ -93,68 +69,77 @@ function mixin<T extends TClass<IInstance>>(
   superClass: T,
 ): any {
   return class Tracker extends superClass {
-    constructor(...args: any[]) {
-      super(...args);
-      this.on('destroyed', () => this.unsubscribe());
-    }
-    
     ids = [];
-    versions = {};
+    memory = {};
+    isStarted = false;
+    needUnsubscribe = false;
 
-    query = null;
     start = null;
     stop = null;
-    tracking: any;
+    
+    init(start) {
+      if (this.isStarted) {
+        throw new Error(`Started tracker ${this.id} cant be inited.`);
+      }
+      this.start = start;
+    }
+
+    async subscribe() {
+      if (this.isStarted) {
+        throw new Error(`Started tracker ${this.id} cant be subscribed.`);
+      }
+      this.stop = await this.start(this);
+      this.isStarted = true;
+      this.emit('subscribed', { tracker: this });
+      if (this.needUnsubscribe) await this.unsubscribe();
+    }
+
+    async unsubscribe() {
+      if (!this.isStarted) {
+        this.needUnsubscribe = true;
+      } else {
+        this.isStarted = false;
+        await this.stop();
+        this.emit('unsubscribed', { tracker: this });
+      }
+    }
 
     add(item) {
-      const { id, version, index, data } = item;
-      const { changed } = version;
-      this.versions[id] = version;
-      this.ids.splice(index, 0, id);
+      this.memory[item.id] = item.memory;
+      this.ids.splice(item.newIndex, 0, item.id);
 
-      const oldIndex = -1;
-      const newIndex = index;
+      item.oldIndex = -1;
+      
+      item.tracker = this;
 
-      this.emit('added', {
-        id, changed, data,
-        oldIndex, newIndex,
-        tracker: this,
-      });
+      this.emit('added', item);
     }
 
     change(item) {
-      const { id, version, index, data } = item;
-      const { changed } = version;
-      const oldIndex = this.ids.indexOf(id);
-      const newIndex = index;
+      item.oldIndex = this.ids.indexOf(item.id);
 
-      if (oldIndex !== newIndex) {
-        this.ids.splice(oldIndex, 1);
-        this.ids.splice(newIndex, 0, id);
+      if (item.oldIndex !== item.newIndex) {
+        this.ids.splice(item.oldIndex, 1);
+        this.ids.splice(item.newIndex, 0, item.id);
       } 
       
-      this.versions[id] = version;
+      this.memory[item.id] = item.memory;
 
-      this.emit('changed', {
-        id, changed, data,
-        oldIndex, newIndex,
-        tracker: this,
-      });
+      item.tracker = this;
+
+      this.emit('changed', item);
     }
 
     remove(item) {
-      const { id, version, index, data } = item;
-      const oldIndex = this.ids.indexOf(id);
-      const newIndex = -1;
+      item.oldIndex = this.ids.indexOf(item.id);
+      item.newIndex = -1;
 
-      this.ids.splice(oldIndex, 1);
-      delete this.versions[id];
+      this.ids.splice(item.oldIndex, 1);
+      delete this.memory[item.id];
 
-      this.emit('removed', {
-        id,
-        oldIndex, newIndex,
-        tracker: this,
-      });
+      item.tracker = this;
+
+      this.emit('removed', item);
     }
 
     override(items) {
@@ -165,10 +150,10 @@ function mixin<T extends TClass<IInstance>>(
         this.remove({ id });
       });
       _.each(items, (item) => {
-        if (_.has(this.versions, item.id)) {
+        if (_.has(this.memory, item.id)) {
           if (
-            item.version.changed ||
-            item.index !== this.ids.indexOf(item.id)
+            item.changed ||
+            item.newIndex !== this.ids.indexOf(item.id)
           ) {
             this.change(item);
           }
@@ -184,30 +169,11 @@ function mixin<T extends TClass<IInstance>>(
       });
     }
 
-    async resubscribe(
-      query = this.query,
-      getItems = this.getItems,
-      start = this.start,
-    ) {
-      this.query = query;
-      this.getItems = getItems;
-      this.start = start;
-
-      await this.unsubscribe();
-
-      const items = await this.getItems(this);
-      this.emit('subscribed', { items, tracker: this });
-      this.override(items);
-      this.stop = await this.start(this);
-
-      return items;
-    }
-
-    async unsubscribe() {
-      if (this.stop) {
-        await this.stop();
-        this.emit('unsubscribed', { tracker: this });
+    destroy() {
+      if (this.isStarted) {
+        throw new Error(`Started tracker ${this.id} cant be destroyed.`);
       }
+      super.destroy();
     }
   };
 }
@@ -223,14 +189,8 @@ export {
   ITracker,
   ITrackerEventsList,
   TTracker,
-  TIndex,
-  TId,
-  IVersion,
-  IItem,
+  ITrackerItem,
   ITrackerEventData,
-  ITrackerEventTrackerData,
-  ITrackerEventItemData,
-  ITrackingGetItems,
-  ITrackingStart,
-  ITrackingStop,
+  ITrackerStart,
+  ITrackerStop,
 };

@@ -10,158 +10,68 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
 const _ = require("lodash");
-const chance = require('chance').Chance();
-const tracker_1 = require("../lib/tracker");
 const asketic_tracker_1 = require("../lib/asketic-tracker");
-const tracker_iterator_equal_1 = require("../lib/tracker-iterator-equal");
-const delay = time => new Promise(resolve => setTimeout(resolve, time));
+const utils_1 = require("./utils");
 function default_1() {
     describe('AsketicTracker:', () => {
-        it('asketic tracking static', () => __awaiter(this, void 0, void 0, function* () {
-            const base = [];
-            _.times(3, () => {
-                base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
-            });
-            const asketicTracker = new asketic_tracker_1.AsketicTracker();
-            const events = [];
-            asketicTracker.on('emit', ({ eventName }) => events.push(eventName));
-            const results = yield asketicTracker.resubscribe({
+        it('lifecycle', () => __awaiter(this, void 0, void 0, function* () {
+            const db = yield utils_1.startDb();
+            const tracker = new asketic_tracker_1.AsketicTracker();
+            const query = {
                 schema: {
+                    name: 'select',
+                    options: {
+                        sql: `select * from test where v > 2 and v < 8 order by v asc limit 2;`,
+                    },
                     fields: {
-                        x: {
-                            name: 'query',
+                        v: {},
+                        next: {
+                            name: 'select',
+                            options: {
+                                sql: `select * from test where v = <%= v+1 %>;`,
+                            },
                             fields: {
-                                name: {},
-                                y: {
-                                    name: 'query',
-                                    fields: {
-                                        age: {},
-                                    },
-                                },
+                                v: {},
                             },
                         },
                     },
                 },
-            }, (flow) => __awaiter(this, void 0, void 0, function* () {
-                if (_.get(flow, 'schema.name') === 'query') {
-                    const tracker = new tracker_1.Tracker();
-                    const items = yield tracker.resubscribe(_.get(flow, 'schema.query'), () => __awaiter(this, void 0, void 0, function* () { return _.map(base, (b, i) => tracker_iterator_equal_1.toItem(b, i, 'id', tracker)); }), () => __awaiter(this, void 0, void 0, function* () { return () => null; }));
-                    const data = _.map(items, i => i.data);
-                    return { tracker, data };
-                }
-                return {};
-            }));
-            yield delay(5);
-            asketicTracker.destroy();
-            chai_1.assert.deepEqual(events, [
-                'tracked',
-                'tracked',
-                'tracked',
-                'tracked',
-                'subscribed',
-                'untracked',
-                'untracked',
-                'untracked',
-                'untracked',
-                'unsubscribed',
-                'destroyed',
-            ]);
-            chai_1.assert.deepEqual(results.data, {
-                x: _.map(base, b => ({
-                    name: b.name,
-                    y: _.map(base, b => ({
-                        age: b.age,
-                    })),
-                })),
-            });
-        }));
-        it('asketic tracking events', () => __awaiter(this, void 0, void 0, function* () {
-            const base = [];
-            _.times(3, () => {
-                base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
-            });
-            const asketicTracker = new asketic_tracker_1.AsketicTracker();
-            const events = [];
-            asketicTracker.on('emit', ({ eventName }) => events.push(eventName));
-            const trackers = [];
-            const results = yield asketicTracker.resubscribe({
-                schema: {
-                    fields: {
-                        x: {
-                            name: 'query',
-                            fields: {
-                                name: {},
-                                y: {
-                                    name: 'query',
-                                    fields: {
-                                        age: {},
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-            }, (flow) => __awaiter(this, void 0, void 0, function* () {
-                if (_.get(flow, 'schema.name') === 'query') {
-                    const tracker = new tracker_1.Tracker();
-                    const items = yield tracker.resubscribe(_.get(flow, 'schema.query'), () => __awaiter(this, void 0, void 0, function* () { return _.map(base, (b, i) => tracker_iterator_equal_1.toItem(b, i, 'id', tracker)); }), (tracker) => __awaiter(this, void 0, void 0, function* () {
-                        trackers.push(tracker);
-                        return () => _.remove(trackers, t => t.id === tracker.id);
-                    }));
-                    const data = _.map(items, i => i.data);
-                    return { tracker, data };
-                }
-                return {};
-            }));
-            chai_1.assert.deepEqual(results.data, {
-                x: _.map(base, b => ({
-                    name: b.name,
-                    y: _.map(base, b => ({
-                        age: b.age,
-                    })),
-                })),
-            });
-            const override = () => {
-                _.each(trackers, tracker => tracker.override(_.map(base, (b, i) => tracker_iterator_equal_1.toItem(b, i, 'id', tracker))));
             };
-            const insert = () => __awaiter(this, void 0, void 0, function* () {
-                yield delay(5);
-                base.push({ id: chance.fbid(), age: chance.age(), name: chance.name() });
-                override();
+            tracker.init(utils_1.newAsketicTrackerStart(db, query));
+            yield utils_1.exec(db, `create table test (id integer primary key autoincrement, v integer);`);
+            yield utils_1.exec(db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
+            let results;
+            tracker.on('added', ({ item, result, path }) => {
+                _.get(results.data, path, results.data).splice(item.newIndex, 0, result.data);
             });
-            const update = (oldIndex = _.random(0, base.length - 1), newIndex = _.random(0, base.length - 1)) => __awaiter(this, void 0, void 0, function* () {
-                yield delay(5);
-                base.splice(newIndex, 0, base.splice(oldIndex, 1)[0]);
-                override();
+            tracker.on('changed', ({ item, result, path }) => {
+                _.get(results.data, path, results.data).splice(item.oldIndex, 1);
+                _.get(results.data, path, results.data).splice(item.newIndex, 0, result.data);
             });
-            const remove = () => __awaiter(this, void 0, void 0, function* () {
-                yield delay(5);
-                const oldIndex = _.random(0, base.length - 1);
-                base.splice(oldIndex, 1);
-                override();
+            tracker.on('removed', ({ item, path }) => {
+                _.get(results.data, path, results.data).splice(item.oldIndex, 1);
             });
-            yield insert();
-            yield insert();
-            yield update(4, 2);
-            yield update(1, 3);
-            yield delay(5);
-            asketicTracker.destroy();
-            yield delay(5);
-            chai_1.assert.deepEqual(events, [
-                ..._.times(4, () => 'tracked'),
-                ..._.times(1, () => 'subscribed'),
-                ..._.times(1, () => 'tracked'),
-                ..._.times(4, () => 'added'),
-                ..._.times(1, () => 'tracked'),
-                ..._.times(5, () => 'added'),
-                ..._.times(1, () => 'tracked'),
-                ..._.times(6, () => 'changed'),
-                ..._.times(2, () => 'tracked'),
-                ..._.times(14, () => 'changed'),
-                ..._.times(9, () => 'untracked'),
-                ..._.times(1, () => 'unsubscribed'),
-                ..._.times(1, () => 'destroyed'),
-            ]);
+            results = yield tracker.subscribe();
+            chai_1.assert.deepEqual(results.data, _.times(2, t => ({
+                v: t + 3,
+                next: [{ v: t + 4 }],
+            })));
+            yield utils_1.exec(db, `update test set v = 6 where id = 3`);
+            yield utils_1.delay(5);
+            chai_1.assert.deepEqual(results.data, _.times(2, t => ({
+                v: t + 4,
+                next: _.times(t ? 2 : 1, d => ({ v: t + 5 })),
+            })));
+            yield utils_1.exec(db, `update test set v = 7 where id = 6`);
+            yield utils_1.delay(5);
+            chai_1.assert.deepEqual(results.data, _.times(2, t => ({
+                v: t + 4,
+                next: [{ v: t + 5 }],
+            })));
+            yield tracker.unsubscribe();
+            yield utils_1.delay(5);
+            yield utils_1.stopDb(db);
+            chai_1.assert.deepEqual(tracker.trackers, []);
         }));
     });
 }

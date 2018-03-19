@@ -13,8 +13,8 @@ import {
 
 import {
   Tracker,
-  ITrackerEventItemData,
-  ITrackingStart,
+  ITrackerItem,
+  ITrackerStart,
   TTracker,
 } from './tracker';
 
@@ -27,40 +27,65 @@ import {
 
 type TAsketicTracker =  IAsketicTracker<IAsketicTrackerEventsList>;
 
-interface IAsketicTrackerEventItemData extends ITrackerEventItemData {
-  path: string;
+interface IAsketicTrackerItem {
+  asketicTracker: TAsketicTracker;
+  item: ITrackerItem;
+  result: any;
+  path: String;
+  flow: IQueryFlow;
 }
-interface IAsketicTrackerEventTrackData extends ITrackerEventItemData {
+
+interface IAsketicTrackerTracking {
+  asketicTracker: TAsketicTracker;
   tracker: TTracker;
   path: string;
   flow: IQueryFlow;
 }
 
+interface IAsketicTrackerSubscribing {
+  asketicTracker: TAsketicTracker;
+  results?: any;
+}
+
 interface IAsketicTrackerEventsList extends INodeEventsList {
-  added: IAsketicTrackerEventItemData;
-  changed: IAsketicTrackerEventItemData;
-  removed: IAsketicTrackerEventItemData;
-  tracked: IAsketicTrackerEventTrackData;
-  untracked: IAsketicTrackerEventTrackData;
+  added: IAsketicTrackerItem;
+  changed: IAsketicTrackerItem;
+  removed: IAsketicTrackerItem;
+  track: IAsketicTrackerTracking;
+  tracked: IAsketicTrackerTracking;
+  untrack: IAsketicTrackerTracking;
+  untracked: IAsketicTrackerTracking;
+  subscribed: IAsketicTrackerSubscribing;
+  unsubscribed: IAsketicTrackerSubscribing;
 }
 
-interface IAsketicTrackerResolverResult {
-  tracker?: TTracker;
-  data?: any[];
-}
-
-interface IAsketicTrackerResolver {
-  (flow: IQueryFlow): Promise<IAsketicTrackerResolverResult>;
+interface IAsketicTrackerAsk {
+  (tracker: TTracker): Promise<any>;
 }
 
 interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList>
 extends INode<IEventsList> {
   trackerClass: TClass<TTracker>;
+  isStarted: boolean;
 
-  resubscribe(
-    query: IQuery,
-    schemaResolver: IAsketicTrackerResolver,
-  ): Promise<any>;
+  ask: IAsketicTrackerAsk;
+  trackers: TTracker[];
+
+  init(start?: ITrackerStart): this;
+
+  resolveItemData(flow: IQueryFlow, data: any): IQueryFlow;
+  resolveItemsArray(flow: IQueryFlow, items: ITrackerItem[]): IQueryFlow;
+  resolveDefault(flow: IQueryFlow): IQueryFlow;
+
+  watchTracker(tracker: TTracker, flow: IQueryFlow): void;
+
+  track(flow?: IQueryFlow): TTracker;
+  untrack(tracker: TTracker, flow?: IQueryFlow): Promise<void>;
+
+  createResolver(resolver: IQueryResolver): IQueryResolver;
+  asket(flow): Promise<IQueryFlow>;
+
+  subscribe(): Promise<any>;
   unsubscribe(): Promise<void>;
 }
 
@@ -69,114 +94,183 @@ function mixin<T extends TClass<IInstance>>(
   trackerClass: T,
 ): any {
   return class AsketicTracker extends superClass {
-    constructor(...args: any[]) {
-      super(...args);
-      this.on('destroyed', () => this.unsubscribe());
-    }
     trackerClass = trackerClass;
-    queryResolver() {
-      const resolver: IQueryResolver = flow => new Promise(async (resolve) => {
-        if (!flow.data) {
-          const { tracker, data } = await this.schemaResolver(flow);
-          if (tracker && data) {
-            const parent = flow.env.parent;
-            const path = [...flow.env.path, flow.key];
+    isStarted = false;
+    trackers = [];
+    
+    init(ask) {
+      if (this.isStarted) {
+        throw new Error(`Started tracker ${this.id} cant be inited.`);
+      }
+      this.ask = ask;
+    }
 
-            this.emit('tracked', { flow, tracker, path });
+    resolveItemData(flow, data) {
+      return {
+        ...flow,
+        data,
+        env: {
+          ...flow.env,
+          item: flow.data,
+          type: 'data',
+          path: flow.env.nextPath,
+        },
+      };
+    }
 
-            this.on('unsubscribed', () => {
-              tracker.destroy();
-            });
+    resolveItemsArray(flow, items) {
+      return {
+        ...flow,
+        data: items,
+        env: {
+          ...flow.env,
+          type: 'items',
+          path: flow.env.nextPath,
+        },
+      };
+    }
 
-            tracker.on('destroyed', () => {
-              this.emit('untracked', { flow, tracker, path });
-            });
+    resolveDefault(flow) {
+      return {
+        ...flow,
+        env: {
+          ...flow.env,
+          type: 'query',
+          path: flow.env.nextPath,
+        },
+      };
+    }
 
-            tracker.on('added', async ({
-              id, changed, data, oldIndex, newIndex,
-            }) => {
-              const results = await asket({
-                resolver, data,
-                query: { schema: flow.schema },
-                env: { ...flow.env, id, path: [...path, id] },
-              });
-              this.emit('added', {
-                id, changed, oldIndex, newIndex, tracker,
-                flow, path,
-                data: results,
-              });
-            });
-
-            tracker.on('changed', async ({
-              id, changed, data, oldIndex, newIndex,
-            }) => {
-              const results = await asket({
-                resolver, data,
-                query: { schema: flow.schema },
-                env: { ...flow.env, id, path: [...path, id] },
-              });
-              this.emit('changed', {
-                id, changed, oldIndex, newIndex, tracker,
-                flow, path,
-                data: results,
-              });
-            });
-
-            tracker.on('removed', async ({
-              id, changed, oldIndex, newIndex,
-            }) => {
-              this.emit('removed', {
-                id, changed, oldIndex, newIndex, tracker,
-                flow, path,
-              });
-            });
-
-            if (parent) {
-              parent.on('destroyed', () => tracker.destroy());
-              parent.on('removed', ({ id }) => id === flow.env.id && tracker.destroy());
-              parent.on('changed', ({ id }) => id === flow.env.id && tracker.destroy());
-            }
-
-            return resolve({
-              ...flow,
-              data,
-              env: {
-                ...flow.env, path,
-                parent: tracker,
-              },
-            });
-          }
-        }
-
-        return resolve({
+    watchTracker(tracker, flow) {
+      tracker.on('added', async (item) => {
+        const itemPath = [...flow.env.nextPath, item.newIndex];
+        const result = await this.asket({
           ...flow,
+          query: { schema: flow.schema },
+          data: item,
           env: {
             ...flow.env,
-            path: [...flow.env.path, flow.key],
+            type: 'items',
+            path: itemPath,
           },
+        });
+        this.emit('added', {
+          item, result, flow,
+          asketicTracker: this,
+          path: flow.env.nextPath,
         });
       });
 
-      return resolver;
-    }
-    async resubscribe(query, schemaResolver) {
-      this.schemaResolver = schemaResolver;
-      const data = await asket({
-        query,
-        resolver: this.queryResolver(),
-        env: {
-          id: null,
-          parent: null,
-          path: [],
-          type: 'query',
-        },
+      tracker.on('changed', async (item) => {
+        const itemPath = [...flow.env.nextPath, item.newIndex];
+        const result = await this.asket({
+          ...flow,
+          query: { schema: flow.schema },
+          data: item,
+          env: {
+            ...flow.env,
+            type: 'items',
+            path: itemPath,
+          },
+        });
+        this.emit('changed', {
+          item, result, flow,
+          asketicTracker: this,
+          path: flow.env.nextPath,
+        });
       });
-      this.emit('subscribed', { data, tracker: this });
-      return data;
+
+      tracker.on('removed', async (item) => {
+        await this.untrack(tracker, flow);
+        this.emit('removed', {
+          item, flow,
+          asketicTracker: this,
+          path: flow.env.nextPath,
+        });
+      });
+
+      if (flow.env.item) {
+        const parent = flow.env.item.tracker;
+        parent.on('destroyed', () => tracker.isStarted && this.untrack(tracker, flow));
+        parent.on('removed', ({ id }) => {
+          id === flow.env.item.id && this.untrack(tracker, flow);
+        });
+        parent.on('changed', ({ id }) => {
+          id === flow.env.item.id && this.untrack(tracker, flow);
+        });
+      }
     }
 
-    unsubscribe() {
-      this.emit('unsubscribed', { tracker: this });
+    track(flow?) {
+      const tracker = new this.trackerClass();
+      this.trackers.push(tracker);
+      tracker.once('subscribed', () => {
+        this.emit('tracked', { flow, tracker, asketicTracker: this });
+        this.watchTracker(tracker, flow);
+      });
+      this.emit('track', { flow, tracker, asketicTracker: this });
+      return tracker;
+    }
+
+    async untrack(tracker, flow?) {
+      this.emit('untrack', { flow, tracker, asketicTracker: this });
+      await tracker.unsubscribe();
+      _.remove(this.trackers, t => t === tracker);
+      this.emit('untracked', { flow, tracker, asketicTracker: this });
+      tracker.destroy();
+    }
+
+    async subscribe() {
+      if (this.isStarted) {
+        throw new Error(`Started asketic tracker ${this.id} cant be subscribed.`);
+      }
+      this.isStarted = true;
+
+      const results = await this.ask(this);
+      this.emit('subscribed', { results, asketicTracker: this });
+
+      return results;
+    }
+
+    async unsubscribe() {
+      if (!this.isStarted) {
+        throw new Error(`Not started asketic tracker ${this.id} cant be unsubscribed.`);
+      }
+      this.isStarted = false;
+
+      const trackers = _.map(this.trackers, t => this.untrack(t));
+      await Promise.all(trackers);
+
+      this.emit('unsubscribed', { asketicTracker: this });
+
+      return this;
+    }
+
+    createResolver(resolver) {
+      return (flow) => {
+        flow.env.name = _.get(flow, 'schema.name');
+        flow.env.nextPath = !_.isUndefined(flow.key) ? [...flow.env.path, flow.key] : flow.env.path;
+        return resolver(flow);
+      };
+    }
+
+    asket(flow) {
+      return asket({
+        ...flow,
+        env: {
+          item: null,
+          path: [],
+          type: 'query',
+          ...flow.env,
+        },
+      });
+    }
+    
+    destroy() {
+      if (this.isStarted) {
+        throw new Error(`Started asketic tracker ${this.id} cant be destroyed.`);
+      }
+      super.destroy();
     }
   };
 }
@@ -192,8 +286,8 @@ export {
   IAsketicTracker,
   IAsketicTrackerEventsList,
   TAsketicTracker,
-  IAsketicTrackerEventItemData,
-  IAsketicTrackerEventTrackData,
-  IAsketicTrackerResolver,
-  IAsketicTrackerResolverResult,
+  IAsketicTrackerItem,
+  IAsketicTrackerTracking,
+  IAsketicTrackerSubscribing,
+  IAsketicTrackerAsk,
 };
