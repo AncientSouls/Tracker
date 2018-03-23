@@ -31,7 +31,7 @@ interface IAsketicTrackerItem {
   asketicTracker: TAsketicTracker;
   item: ITrackerItem;
   result: any;
-  path: String;
+  path: string;
   flow: IQueryFlow;
 }
 
