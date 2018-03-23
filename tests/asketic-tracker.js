@@ -57,19 +57,19 @@ function default_1() {
                 next: [{ v: t + 4 }],
             })));
             yield utils_1.exec(db, `update test set v = 6 where id = 3`);
-            yield utils_1.delay(5);
+            yield utils_1.delay(100);
             chai_1.assert.deepEqual(results.data, _.times(2, t => ({
                 v: t + 4,
                 next: _.times(t ? 2 : 1, d => ({ v: t + 5 })),
             })));
             yield utils_1.exec(db, `update test set v = 7 where id = 6`);
-            yield utils_1.delay(5);
+            yield utils_1.delay(100);
             chai_1.assert.deepEqual(results.data, _.times(2, t => ({
                 v: t + 4,
                 next: [{ v: t + 5 }],
             })));
             yield tracker.unsubscribe();
-            yield utils_1.delay(5);
+            yield utils_1.delay(100);
             yield utils_1.stopDb(db);
             chai_1.assert.deepEqual(tracker.trackers, []);
         }));

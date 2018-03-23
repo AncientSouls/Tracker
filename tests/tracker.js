@@ -31,21 +31,21 @@ function default_1() {
                 4: { id: 4, v: 4 },
             });
             yield utils_1.exec(db, `update test set v = 6 where id = 3`);
-            yield utils_1.delay(3);
+            yield utils_1.delay(100);
             chai_1.assert.deepEqual(tracker.ids, [4, 5]);
             chai_1.assert.deepEqual(tracker.memory, {
                 4: { id: 4, v: 4 },
                 5: { id: 5, v: 5 },
             });
             yield utils_1.exec(db, `update test set v = 3 where id = 5`);
-            yield utils_1.delay(3);
+            yield utils_1.delay(100);
             chai_1.assert.deepEqual(tracker.ids, [5, 4]);
             chai_1.assert.deepEqual(tracker.memory, {
                 4: { id: 4, v: 4 },
                 5: { id: 5, v: 3 },
             });
             yield utils_1.exec(db, `update test set v = 5 where id = 5`);
-            yield utils_1.delay(3);
+            yield utils_1.delay(100);
             chai_1.assert.deepEqual(tracker.ids, [4, 5]);
             chai_1.assert.deepEqual(tracker.memory, {
                 4: { id: 4, v: 4 },
@@ -74,7 +74,7 @@ function default_1() {
             tracker.clean();
             chai_1.assert.deepEqual(tracker.ids, []);
             chai_1.assert.deepEqual(tracker.memory, {});
-            yield utils_1.delay(3);
+            yield utils_1.delay(100);
             yield utils_1.stopDb(db);
             chai_1.assert.deepEqual(events, [
                 'added', 'added',

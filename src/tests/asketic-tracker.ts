@@ -66,7 +66,7 @@ export default function () {
 
       await exec(db, `update test set v = 6 where id = 3`);
 
-      await delay(5);
+      await delay(100);
       
       assert.deepEqual(results.data, _.times(2, t => ({
         v: t + 4,
@@ -75,7 +75,7 @@ export default function () {
 
       await exec(db, `update test set v = 7 where id = 6`);
 
-      await delay(5);
+      await delay(100);
       
       assert.deepEqual(results.data, _.times(2, t => ({
         v: t + 4,
@@ -84,7 +84,7 @@ export default function () {
 
       await tracker.unsubscribe();
 
-      await delay(5);
+      await delay(100);
 
       await stopDb(db);
 
