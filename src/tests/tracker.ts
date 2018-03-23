@@ -41,7 +41,7 @@ export default function () {
 
       await exec(db, `update test set v = 6 where id = 3`);
 
-      await delay(3);
+      await delay(100);
       
       assert.deepEqual(tracker.ids, [4,5]);
       assert.deepEqual(tracker.memory, {
@@ -51,7 +51,7 @@ export default function () {
 
       await exec(db, `update test set v = 3 where id = 5`);
 
-      await delay(3);
+      await delay(100);
       
       assert.deepEqual(tracker.ids, [5,4]);
       assert.deepEqual(tracker.memory, {
@@ -61,7 +61,7 @@ export default function () {
 
       await exec(db, `update test set v = 5 where id = 5`);
 
-      await delay(3);
+      await delay(100);
       
       assert.deepEqual(tracker.ids, [4,5]);
       assert.deepEqual(tracker.memory, {
@@ -101,7 +101,7 @@ export default function () {
       assert.deepEqual(tracker.ids, []);
       assert.deepEqual(tracker.memory, {});
 
-      await delay(3);
+      await delay(100);
 
       await stopDb(db);
       
