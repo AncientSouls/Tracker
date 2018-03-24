@@ -180,8 +180,7 @@ function mixin<T extends TClass<IInstance>>(
         });
       });
 
-      tracker.on('removed', async (item) => {
-        await this.untrack(tracker, flow);
+      tracker.on('removed', (item) => {
         this.emit('removed', {
           item, flow,
           asketicTracker: this,
