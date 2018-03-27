@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const _ = require("lodash");
 const sqlite3 = require('sqlite3').verbose();
+const tracking_1 = require("../lib/tracking");
 const startDb = () => new Promise((resolver) => {
     const db = new sqlite3.Database(':memory:');
     db.serialize(() => {
@@ -18,7 +19,6 @@ const startDb = () => new Promise((resolver) => {
 });
 exports.startDb = startDb;
 const stopDb = (db) => new Promise(resolve => db.close(() => resolve()));
-exports.stopDb = stopDb;
 const delay = (t) => new Promise(resolve => setTimeout(resolve, t));
 exports.delay = delay;
 const exec = (db, sql) => {
@@ -39,23 +39,56 @@ const fetch = (db, sql) => {
     }));
 };
 exports.fetch = fetch;
-const fetchAndOverride = (db, sql, tracker) => __awaiter(this, void 0, void 0, function* () {
-    const data = yield fetch(db, sql);
-    tracker.override(_.map(data, (d, i) => toItem(d, i, 'id', tracker)));
-});
-exports.fetchAndOverride = fetchAndOverride;
-const newTrackerStart = (db, sql, time) => {
-    return (tracker) => __awaiter(this, void 0, void 0, function* () {
-        const intervalHandler = () => __awaiter(this, void 0, void 0, function* () { return yield fetchAndOverride(db, sql, tracker); });
-        const intervalToken = setInterval(intervalHandler, time);
-        yield fetchAndOverride(db, sql, tracker);
-        return () => __awaiter(this, void 0, void 0, function* () {
-            clearInterval(intervalToken);
+class TestTracking extends tracking_1.Tracking {
+    start(db) {
+        const _super = name => super[name];
+        return __awaiter(this, void 0, void 0, function* () {
+            this.db = db;
+            this.interval = setInterval(() => {
+                _.each(this.trackings, (tracking) => {
+                    this.override(tracking);
+                });
+            }, 10);
+            yield _super("start").call(this);
         });
-    });
-};
-exports.newTrackerStart = newTrackerStart;
-const newAsketicTrackerStart = (db, query) => (asketicTracker) => __awaiter(this, void 0, void 0, function* () {
+    }
+    stop() {
+        const _super = name => super[name];
+        return __awaiter(this, void 0, void 0, function* () {
+            clearInterval(this.interval);
+            yield stopDb(this.db);
+            yield _super("stop").call(this);
+        });
+    }
+    fetch(query) {
+        return fetch(this.db, query);
+    }
+    parse(data, newIndex, query, tracker) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const id = data.id;
+            const oldVersion = tracker.memory[data.id];
+            const isChanged = !_.isEqual(data, (oldVersion || {}));
+            return {
+                id, data, newIndex,
+                tracker,
+                memory: data,
+                changed: isChanged,
+            };
+        });
+    }
+    track(query) {
+        return (tracker) => __awaiter(this, void 0, void 0, function* () {
+            const tracking = { query, tracker };
+            this.trackings.push(tracking);
+            yield this.override(tracking);
+            return () => __awaiter(this, void 0, void 0, function* () {
+                _.remove(this.trackings, t => t.tracker === tracker);
+            });
+        });
+    }
+}
+exports.TestTracking = TestTracking;
+const newAsketicTrackerStart = (tracking, query) => (asketicTracker) => __awaiter(this, void 0, void 0, function* () {
     const resolver = (flow) => __awaiter(this, void 0, void 0, function* () {
         if (flow.env.type === 'items') {
             return asketicTracker.resolveItemData(flow, flow.data.data);
@@ -64,7 +97,7 @@ const newAsketicTrackerStart = (db, query) => (asketicTracker) => __awaiter(this
             const tracker = yield asketicTracker.track(flow);
             const trackerAddedListener = item => items.splice(item.newIndex, 0, item);
             const sql = _.template(_.get(flow, 'schema.options.sql'))(_.get(flow, 'env.item.data'));
-            tracker.init(newTrackerStart(db, sql, 1));
+            tracker.init(tracking.track(sql));
             const items = [];
             tracker.on('added', trackerAddedListener);
             yield tracker.subscribe();
@@ -79,16 +112,4 @@ const newAsketicTrackerStart = (db, query) => (asketicTracker) => __awaiter(this
     });
 });
 exports.newAsketicTrackerStart = newAsketicTrackerStart;
-const toItem = (data, newIndex, idField, tracker) => {
-    const id = data[idField];
-    const oldVersion = tracker.memory[data[idField]];
-    const isChanged = !_.isEqual(data, (oldVersion || {}));
-    return {
-        id, data, newIndex,
-        tracker,
-        memory: data,
-        changed: isChanged,
-    };
-};
-exports.toItem = toItem;
 //# sourceMappingURL=utils.js.map

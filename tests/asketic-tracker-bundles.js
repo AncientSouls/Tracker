@@ -17,7 +17,8 @@ const cursor_1 = require("ancient-cursor/lib/cursor");
 function default_1() {
     describe('AsketicTrackerBundles:', () => {
         it('lifecycle', () => __awaiter(this, void 0, void 0, function* () {
-            const db = yield utils_1.startDb();
+            const t = new utils_1.TestTracking();
+            yield t.start(yield utils_1.startDb());
             const tracker = new asketic_tracker_1.AsketicTracker();
             const query = {
                 schema: {
@@ -39,9 +40,9 @@ function default_1() {
                     },
                 },
             };
-            tracker.init(utils_1.newAsketicTrackerStart(db, query));
-            yield utils_1.exec(db, `create table test (id integer primary key autoincrement, v integer);`);
-            yield utils_1.exec(db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
+            tracker.init(utils_1.newAsketicTrackerStart(t, query));
+            yield utils_1.exec(t.db, `create table test (id integer primary key autoincrement, v integer);`);
+            yield utils_1.exec(t.db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
             const cursor = new cursor_1.Cursor();
             bundles_1.trackerToBundles(tracker, (bundles) => {
                 _.each(bundles, b => cursor.apply(b));
@@ -51,13 +52,13 @@ function default_1() {
                 v: t + 3,
                 next: [{ v: t + 4 }],
             })));
-            yield utils_1.exec(db, `update test set v = 6 where id = 3`);
+            yield utils_1.exec(t.db, `update test set v = 6 where id = 3`);
             yield utils_1.delay(100);
             chai_1.assert.deepEqual(cursor.data, _.times(2, t => ({
                 v: t + 4,
                 next: _.times(t ? 2 : 1, d => ({ v: t + 5 })),
             })));
-            yield utils_1.exec(db, `update test set v = 7 where id = 6`);
+            yield utils_1.exec(t.db, `update test set v = 7 where id = 6`);
             yield utils_1.delay(100);
             chai_1.assert.deepEqual(cursor.data, _.times(2, t => ({
                 v: t + 4,
@@ -65,7 +66,7 @@ function default_1() {
             })));
             yield tracker.unsubscribe();
             yield utils_1.delay(100);
-            yield utils_1.stopDb(db);
+            yield t.stop();
             chai_1.assert.deepEqual(tracker.trackers, []);
         }));
     });
