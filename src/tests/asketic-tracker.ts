@@ -5,19 +5,19 @@ import { AsketicTracker } from '../lib/asketic-tracker';
 
 import {
   startDb,
-  stopDb,
   delay,
   exec,
   fetch,
-  fetchAndOverride,
+  TestTracking,
   newAsketicTrackerStart,
-  toItem,
 } from './utils';
 
 export default function () {
   describe('AsketicTracker:', () => {
     it('lifecycle', async () => {
-      const db = await startDb();
+      const t = new TestTracking();
+      await t.start(await startDb());
+
       const tracker = new AsketicTracker();
 
       const query = {
@@ -41,10 +41,10 @@ export default function () {
         },
       };
 
-      tracker.init(newAsketicTrackerStart(db, query));
+      tracker.init(newAsketicTrackerStart(t, query));
 
-      await exec(db, `create table test (id integer primary key autoincrement, v integer);`);
-      await exec(db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
+      await exec(t.db, `create table test (id integer primary key autoincrement, v integer);`);
+      await exec(t.db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
 
       let results;
       tracker.on('added', ({ item, result, path }) => {
@@ -64,7 +64,7 @@ export default function () {
         next: [{ v: t + 4 }],
       })));
 
-      await exec(db, `update test set v = 6 where id = 3`);
+      await exec(t.db, `update test set v = 6 where id = 3`);
 
       await delay(100);
       
@@ -73,7 +73,7 @@ export default function () {
         next: _.times(t ? 2 : 1, d => ({ v: t + 5 })),
       })));
 
-      await exec(db, `update test set v = 7 where id = 6`);
+      await exec(t.db, `update test set v = 7 where id = 6`);
 
       await delay(100);
       
@@ -86,7 +86,7 @@ export default function () {
 
       await delay(100);
 
-      await stopDb(db);
+      await t.stop();
 
       assert.deepEqual(tracker.trackers, []);
     });

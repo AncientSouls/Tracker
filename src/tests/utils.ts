@@ -20,6 +20,11 @@ import {
   asket,
 } from 'ancient-asket/lib/asket';
 
+import {
+  Tracking,
+  ITrackingItem,
+} from '../lib/tracking';
+
 const startDb = (): Promise<Database> => new Promise((resolver) => {
   const db = new sqlite3.Database(':memory:');
   db.serialize(() => {
@@ -45,28 +50,59 @@ const fetch = (db, sql): Promise<any[]> => {
   }));
 };
 
-const fetchAndOverride = async (db, sql, tracker) => {
-  const data = await fetch(db, sql);
-  tracker.override(_.map(data, (d,i) => toItem(d,i,'id',tracker)));
-};
+class TestTracking extends Tracking {
+  db: Database;
+  interval: any;
+  
+  async start(db?: Database) {
+    this.db = db;
+    this.interval = setInterval(
+      () => {
+        _.each(this.trackings, (tracking) => {
+          this.override(tracking);
+        });
+      },
+      10,
+    );
+    await super.start();
+  }
 
-const newTrackerStart = (
-  db: Database,
-  sql: string,
-  time: number,
-): ITrackerStart => {
-  return async (tracker) => {
-    const intervalHandler = async () => await fetchAndOverride(db, sql, tracker);
-    const intervalToken = setInterval(intervalHandler, time);
-    await fetchAndOverride(db, sql, tracker);
-    return async () => {
-      clearInterval(intervalToken);
+  async stop() {
+    clearInterval(this.interval);
+    await stopDb(this.db);
+    await super.stop();
+  }
+
+  fetch(query) {
+    return fetch(this.db, query);
+  }
+
+  async parse(data, newIndex, query, tracker) {
+    const id = data.id;
+    const oldVersion = tracker.memory[data.id];
+    const isChanged = !_.isEqual(data, (oldVersion || {}));
+    return {
+      id, data, newIndex,
+      tracker,
+      memory: data,
+      changed: isChanged,
     };
-  };
-};
+  }
+
+  track(query) {
+    return async (tracker) => {
+      const tracking = { query, tracker };
+      this.trackings.push(tracking);
+      await this.override(tracking);
+      return async () => {
+        _.remove(this.trackings, t => t.tracker === tracker);
+      };
+    };
+  }
+}
 
 const newAsketicTrackerStart = (
-  db: Database,
+  tracking: TestTracking,
   query: IQuery,
 ): IAsketicTrackerAsk => async (asketicTracker) => {
   const resolver = async (flow) => {
@@ -79,7 +115,7 @@ const newAsketicTrackerStart = (
       
       const trackerAddedListener = item => items.splice(item.newIndex, 0, item);
       const sql = _.template(_.get(flow, 'schema.options.sql'))(_.get(flow, 'env.item.data'));
-      tracker.init(newTrackerStart(db, sql, 1));
+      tracker.init(tracking.track(sql));
       
       const items = [];
       tracker.on('added', trackerAddedListener);
@@ -98,26 +134,11 @@ const newAsketicTrackerStart = (
   });
 };
 
-const toItem = (data, newIndex, idField, tracker): ITrackerItem => {
-  const id = data[idField];
-  const oldVersion = tracker.memory[data[idField]];
-  const isChanged = !_.isEqual(data, (oldVersion || {}));
-  return {
-    id, data, newIndex,
-    tracker,
-    memory: data,
-    changed: isChanged,
-  };
-};
-
 export {
-  startDb,
-  stopDb,
+  TestTracking,
   delay,
   exec,
   fetch,
-  fetchAndOverride,
-  newTrackerStart,
+  startDb,
   newAsketicTrackerStart,
-  toItem,
 };

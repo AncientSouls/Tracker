@@ -4,20 +4,19 @@ import * as _ from 'lodash';
 import { Tracker } from '../lib/tracker';
 
 import {
-  startDb,
-  stopDb,
+  TestTracking,
   delay,
   exec,
   fetch,
-  fetchAndOverride,
-  newTrackerStart,
-  toItem,
+  startDb,
 } from './utils';
 
 export default function () {
   describe('Tracker:', () => {
     it('lifecycle', async () => {
-      const db = await startDb();
+      const t = new TestTracking();
+      await t.start(await startDb());
+
       const tracker = new Tracker();
 
       const events = [];
@@ -26,10 +25,10 @@ export default function () {
       const s1 = `select * from test where v > 2 and v < 8 order by v asc limit 2`;
       const s2 = `select * from test where v > 2 and v < 8 order by v desc limit 2`;
 
-      tracker.init(newTrackerStart(db, s1, 1));
+      tracker.init(t.track(s1));
 
-      await exec(db, `create table test (id integer primary key autoincrement, v integer);`);
-      await exec(db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
+      await exec(t.db, `create table test (id integer primary key autoincrement, v integer);`);
+      await exec(t.db, `insert into test (v) values ${_.times(9, t => `(${t + 1})`)};`);
 
       await tracker.subscribe();
       
@@ -39,7 +38,7 @@ export default function () {
         4: { id: 4, v: 4 },
       });
 
-      await exec(db, `update test set v = 6 where id = 3`);
+      await exec(t.db, `update test set v = 6 where id = 3`);
 
       await delay(100);
       
@@ -49,7 +48,7 @@ export default function () {
         5: { id: 5, v: 5 },
       });
 
-      await exec(db, `update test set v = 3 where id = 5`);
+      await exec(t.db, `update test set v = 3 where id = 5`);
 
       await delay(100);
       
@@ -59,7 +58,7 @@ export default function () {
         5: { id: 5, v: 3 },
       });
 
-      await exec(db, `update test set v = 5 where id = 5`);
+      await exec(t.db, `update test set v = 5 where id = 5`);
 
       await delay(100);
       
@@ -77,7 +76,7 @@ export default function () {
         5: { id: 5, v: 5 },
       });
 
-      tracker.init(newTrackerStart(db, s2, 1));
+      tracker.init(t.track(s2));
 
       await tracker.subscribe();
       
@@ -103,7 +102,7 @@ export default function () {
 
       await delay(100);
 
-      await stopDb(db);
+      await t.stop();
       
       assert.deepEqual(events, [
         'added', 'added',
