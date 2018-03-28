@@ -17,14 +17,14 @@ import {
   ITrackerStart,
 } from './tracker';
 
-type TTracking =  ITracking<INodeEventsList>;
+type TTracking =  ITracking<ITrackingEventsList>;
 
 interface ITrackingItem {
   query: any;
   tracker: TTracker;
 }
 
-interface ITracking<IEventsList extends INodeEventsList> extends INode<IEventsList> {
+interface ITracking<IEventsList extends ITrackingEventsList> extends INode<IEventsList> {
   start(): Promise<void>;
   stop(): Promise<void>;
 
@@ -122,4 +122,7 @@ export {
   ITracking,
   TTracking,
   ITrackingItem,
+  ITrackingEventsList,
+  ITrackingEventTrackerData,
+  ITrackingEventTrackingData,
 };
