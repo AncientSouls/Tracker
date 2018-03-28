@@ -20,7 +20,6 @@ declare class TestTracking extends Tracking {
         memory: any;
         changed: boolean;
     }>;
-    track(query: any): (tracker: any) => Promise<() => Promise<void>>;
 }
 declare const newAsketicTrackerStart: (tracking: TestTracking, query: IQuery) => IAsketicTrackerAsk;
 export { TestTracking, delay, exec, fetch, startDb, newAsketicTrackerStart };
