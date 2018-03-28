@@ -62,11 +62,17 @@ function mixin<T extends TClass<IInstance>>(
     isStarted = false;
 
     async start() {
+      if (this.isStarted) {
+        throw new Error(`Started tracking ${this.id} cant be started.`);
+      }
       this.isStarted = true;
       this.emit('started', { tracking: this });
     }
 
     async stop() {
+      if (!this.isStarted) {
+        throw new Error(`Not started tracking ${this.id} cant be stopped.`);
+      }
       this.isStarted = false;
       this.emit('stopped', { tracking: this });
     }
