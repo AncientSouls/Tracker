@@ -7,16 +7,16 @@ interface ITrackingItem {
     tracker: TTracker;
     tracking: TTracking;
 }
-interface ITracking<ITrackingItem, IEventsList extends ITrackingEventsList> extends INode<IEventsList> {
+interface ITracking<ITE extends ITrackingItem, IEventsList extends ITrackingEventsList> extends INode<IEventsList> {
     start(): Promise<void>;
     stop(): Promise<void>;
     fetch(query: any): Promise<any[]>;
     parse(document: any, index: number, query: any, tracker: TTracker): Promise<ITrackerItem>;
     trackings: {
-        [id: string]: ITrackingItem;
+        [id: string]: ITE;
     };
     track(query: any): ITrackerStart;
-    override(tracking: ITrackingItem): Promise<void>;
+    override(tracking: ITE): Promise<void>;
 }
 interface ITrackingEventTrackingData {
     tracking: TTracking;

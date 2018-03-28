@@ -26,7 +26,7 @@ interface ITrackingItem {
 }
 
 interface ITracking
-<ITrackingItem, IEventsList extends ITrackingEventsList>
+<ITE extends ITrackingItem, IEventsList extends ITrackingEventsList>
 extends INode<IEventsList> {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -34,10 +34,10 @@ extends INode<IEventsList> {
   fetch(query: any): Promise<any[]>;
   parse(document: any, index: number, query: any, tracker: TTracker): Promise<ITrackerItem>;
 
-  trackings: { [id: string]: ITrackingItem };
+  trackings: { [id: string]: ITE };
 
   track(query: any): ITrackerStart;
-  override(tracking: ITrackingItem): Promise<void>;
+  override(tracking: ITE): Promise<void>;
 }
 
 interface ITrackingEventTrackingData {
