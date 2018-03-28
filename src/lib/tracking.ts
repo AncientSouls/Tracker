@@ -88,8 +88,8 @@ function mixin<T extends TClass<IInstance>>(
         this.override(tracking);
         this.emit('tracked', { tracker, query, tracking: this });
         return async () => {
-          this.emit('untracked', { tracker, query, tracking: this });
           _.remove(this.trackings, t => t.tracker === tracker);
+          this.emit('untracked', { tracker, query, tracking: this });
         };
       };
     }
