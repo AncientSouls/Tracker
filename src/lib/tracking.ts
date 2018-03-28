@@ -40,23 +40,12 @@ extends INode<IEventsList> {
   override(tracking: ITE): Promise<void>;
 }
 
-interface ITrackingEventTrackingData {
-  tracking: TTracking;
-  [key: string]: any;
-}
-
-interface ITrackingEventTrackerData extends ITrackingEventTrackingData {
-  tracker?: TTracker;
-  query?: any;
-  data?: any;
-}
-
 interface ITrackingEventsList extends INodeEventsList {
-  tracked: ITrackingEventTrackerData;
-  untracked: ITrackingEventTrackerData;
-  overrided: ITrackingEventTrackerData;
-  started: ITrackingEventTrackingData;
-  stopped: ITrackingEventTrackingData;
+  tracked: ITrackingItem;
+  untracked: ITrackingItem;
+  overrided: ITrackingItem;
+  started: ITrackingItem;
+  stopped: ITrackingItem;
 }
 
 function mixin<T extends TClass<IInstance>>(
@@ -93,23 +82,23 @@ function mixin<T extends TClass<IInstance>>(
 
     track(query) {
       return async (tracker) => {
-        const trackingItem = { query, tracker, tracking: this };
-        this.items[tracker.id] = trackingItem;
-        await this.override(trackingItem);
-        this.emit('tracked', trackingItem);
+        const item = { query, tracker, tracking: this };
+        this.items[tracker.id] = item;
+        await this.override(item);
+        this.emit('tracked', item);
         return async () => {
           delete this.items[tracker.id];
-          this.emit('untracked', trackingItem);
+          this.emit('untracked', item);
         };
       };
     }
   
-    async override(tracking) {
-      const { query, tracker } = tracking;
+    async override(item) {
+      const { query, tracker } = item;
       const records = await this.fetch(query);
       const data = await Promise.all(_.map(records, (d,i) => this.parse(d, i, query, tracker)));
       tracker.override(data);
-      this.emit('overrided', tracking);
+      this.emit('overrided', item);
     }
 
     destroy() {
@@ -133,6 +122,4 @@ export {
   TTracking,
   ITrackingItem,
   ITrackingEventsList,
-  ITrackingEventTrackerData,
-  ITrackingEventTrackingData,
 };

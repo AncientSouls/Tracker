@@ -18,24 +18,15 @@ interface ITracking<ITE extends ITrackingItem, IEventsList extends ITrackingEven
     track(query: any): ITrackerStart;
     override(tracking: ITE): Promise<void>;
 }
-interface ITrackingEventTrackingData {
-    tracking: TTracking;
-    [key: string]: any;
-}
-interface ITrackingEventTrackerData extends ITrackingEventTrackingData {
-    tracker?: TTracker;
-    query?: any;
-    data?: any;
-}
 interface ITrackingEventsList extends INodeEventsList {
-    tracked: ITrackingEventTrackerData;
-    untracked: ITrackingEventTrackerData;
-    overrided: ITrackingEventTrackerData;
-    started: ITrackingEventTrackingData;
-    stopped: ITrackingEventTrackingData;
+    tracked: ITrackingItem;
+    untracked: ITrackingItem;
+    overrided: ITrackingItem;
+    started: ITrackingItem;
+    stopped: ITrackingItem;
 }
 declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
 declare const MixedTracking: TClass<TTracking>;
 declare class Tracking extends MixedTracking {
 }
-export { mixin as default, mixin, MixedTracking, Tracking, ITracking, TTracking, ITrackingItem, ITrackingEventsList, ITrackingEventTrackerData, ITrackingEventTrackingData };
+export { mixin as default, mixin, MixedTracking, Tracking, ITracking, TTracking, ITrackingItem, ITrackingEventsList };
