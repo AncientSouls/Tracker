@@ -17,21 +17,24 @@ import {
   ITrackerStart,
 } from './tracker';
 
-type TTracking =  ITracking<ITrackingEventsList>;
+type TTracking =  ITracking<ITrackingItem, ITrackingEventsList>;
 
 interface ITrackingItem {
   query: any;
   tracker: TTracker;
+  tracking: TTracking;
 }
 
-interface ITracking<IEventsList extends ITrackingEventsList> extends INode<IEventsList> {
+interface ITracking
+<ITrackingItem, IEventsList extends ITrackingEventsList>
+extends INode<IEventsList> {
   start(): Promise<void>;
   stop(): Promise<void>;
 
   fetch(query: any): Promise<any[]>;
   parse(document: any, index: number, query: any, tracker: TTracker): Promise<ITrackerItem>;
 
-  trackings: ITrackingItem[];
+  trackings: { [id: string]: ITrackingItem };
 
   track(query: any): ITrackerStart;
   override(tracking: ITrackingItem): Promise<void>;
@@ -39,6 +42,7 @@ interface ITracking<IEventsList extends ITrackingEventsList> extends INode<IEven
 
 interface ITrackingEventTrackingData {
   tracking: TTracking;
+  [key: string]: any;
 }
 
 interface ITrackingEventTrackerData extends ITrackingEventTrackingData {
@@ -85,27 +89,27 @@ function mixin<T extends TClass<IInstance>>(
       throw new Error('Method parse must defined in this class!');
     }
 
-    trackings = [];
+    items = {};
 
     track(query) {
       return async (tracker) => {
-        const tracking = { query, tracker };
-        this.trackings.push(tracking);
-        this.override(tracking);
-        this.emit('tracked', { tracker, query, tracking: this });
+        const trackingItem = { query, tracker, tracking: this };
+        this.items[tracker.id] = trackingItem;
+        await this.override(trackingItem);
+        this.emit('tracked', trackingItem);
         return async () => {
-          _.remove(this.trackings, t => t.tracker === tracker);
-          this.emit('untracked', { tracker, query, tracking: this });
+          delete this.items[tracker.id];
+          this.emit('untracked', trackingItem);
         };
       };
     }
   
-    async override(traking) {
-      const { query, tracker } = traking;
+    async override(tracking) {
+      const { query, tracker } = tracking;
       const records = await this.fetch(query);
       const data = await Promise.all(_.map(records, (d,i) => this.parse(d, i, query, tracker)));
       tracker.override(data);
-      this.emit('overrided', { tracker, query, data, tracking: this });
+      this.emit('overrided', tracking);
     }
 
     destroy() {

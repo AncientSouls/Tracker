@@ -58,7 +58,7 @@ class TestTracking extends Tracking {
     this.db = db;
     this.interval = setInterval(
       () => {
-        _.each(this.trackings, (tracking) => {
+        _.each(this.items, (tracking) => {
           this.override(tracking);
         });
       },
@@ -86,17 +86,6 @@ class TestTracking extends Tracking {
       tracker,
       memory: data,
       changed: isChanged,
-    };
-  }
-
-  track(query) {
-    return async (tracker) => {
-      const tracking = { query, tracker };
-      this.trackings.push(tracking);
-      await this.override(tracking);
-      return async () => {
-        _.remove(this.trackings, t => t.tracker === tracker);
-      };
     };
   }
 }
