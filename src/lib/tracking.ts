@@ -17,7 +17,7 @@ import {
   ITrackerStart,
 } from './tracker';
 
-type TTracking =  ITracking<ITrackingItem, ITrackingEventsList>;
+type TTracking =  ITracking<ITrackingItem, ITrackingEventsList<ITrackingItem>>;
 
 interface ITrackingItem {
   query: any;
@@ -26,7 +26,7 @@ interface ITrackingItem {
 }
 
 interface ITracking
-<ITE extends ITrackingItem, IEventsList extends ITrackingEventsList>
+<ITE extends ITrackingItem, IEventsList extends ITrackingEventsList<ITrackingItem>>
 extends INode<IEventsList> {
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -40,12 +40,12 @@ extends INode<IEventsList> {
   override(tracking: ITE): Promise<void>;
 }
 
-interface ITrackingEventsList extends INodeEventsList {
-  tracked: ITrackingItem;
-  untracked: ITrackingItem;
-  overrided: ITrackingItem;
-  started: ITrackingItem;
-  stopped: ITrackingItem;
+interface ITrackingEventsList<ITE extends ITrackingItem> extends INodeEventsList {
+  tracked: ITE;
+  untracked: ITE;
+  overrided: ITE;
+  started: ITE;
+  stopped: ITE;
 }
 
 function mixin<T extends TClass<IInstance>>(
