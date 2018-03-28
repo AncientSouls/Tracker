@@ -37,6 +37,24 @@ interface ITracking<IEventsList extends INodeEventsList> extends INode<IEventsLi
   override(tracking: ITrackingItem): Promise<void>;
 }
 
+interface ITrackingEventTrackingData {
+  tracking: TTracking;
+}
+
+interface ITrackingEventTrackerData extends ITrackingEventTrackingData {
+  tracker?: TTracker;
+  query?: any;
+  data?: any;
+}
+
+interface ITrackingEventsList extends INodeEventsList {
+  tracked: ITrackingEventTrackerData;
+  untracked: ITrackingEventTrackerData;
+  overrided: ITrackingEventTrackerData;
+  started: ITrackingEventTrackingData;
+  stopped: ITrackingEventTrackingData;
+}
+
 function mixin<T extends TClass<IInstance>>(
   superClass: T,
 ): any {
@@ -45,10 +63,12 @@ function mixin<T extends TClass<IInstance>>(
 
     async start() {
       this.isStarted = true;
+      this.emit('started', { tracking: this });
     }
 
     async stop() {
       this.isStarted = false;
+      this.emit('stopped', { tracking: this });
     }
     
     fetch(query): any[] {
@@ -66,7 +86,11 @@ function mixin<T extends TClass<IInstance>>(
         const tracking = { query, tracker };
         this.trackings.push(tracking);
         this.override(tracking);
-        return async () => _.remove(this.trackings, t => t.tracker === tracker);
+        this.emit('tracked', { tracker, query, tracking: this });
+        return async () => {
+          this.emit('untracked', { tracker, query, tracking: this });
+          _.remove(this.trackings, t => t.tracker === tracker);
+        };
       };
     }
   
@@ -75,6 +99,7 @@ function mixin<T extends TClass<IInstance>>(
       const records = await this.fetch(query);
       const data = await Promise.all(_.map(records, (d,i) => this.parse(d, i, query, tracker)));
       tracker.override(data);
+      this.emit('overrided', { tracker, query, data, tracking: this });
     }
 
     destroy() {
