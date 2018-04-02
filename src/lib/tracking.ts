@@ -73,9 +73,17 @@ function mixin<T extends TClass<IInstance>>(
     fetch(query): any[] {
       throw new Error('Method fetch must defined in this class!');
     }
-    
-    parse(document, index, query, tracker) {
-      throw new Error('Method parse must defined in this class!');
+  
+    async parse(data, newIndex, query, tracker) {
+      const id = data.id;
+      const oldVersion = tracker.memory[data.id];
+      const isChanged = !_.isEqual(data, (oldVersion || {}));
+      return {
+        id, data, newIndex,
+        tracker,
+        memory: data,
+        changed: isChanged,
+      };
     }
 
     items = {};

@@ -63,19 +63,6 @@ class TestTracking extends tracking_1.Tracking {
     fetch(query) {
         return fetch(this.db, query);
     }
-    parse(data, newIndex, query, tracker) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const id = data.id;
-            const oldVersion = tracker.memory[data.id];
-            const isChanged = !_.isEqual(data, (oldVersion || {}));
-            return {
-                id, data, newIndex,
-                tracker,
-                memory: data,
-                changed: isChanged,
-            };
-        });
-    }
 }
 exports.TestTracking = TestTracking;
 const newAsketicTrackerStart = (tracking, query) => (asketicTracker) => __awaiter(this, void 0, void 0, function* () {
