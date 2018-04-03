@@ -73,8 +73,8 @@ class TestTracking extends Tracking {
     await super.stop();
   }
 
-  fetch(query) {
-    return fetch(this.db, query);
+  fetch(item) {
+    return fetch(this.db, item.query);
   }
 }
 

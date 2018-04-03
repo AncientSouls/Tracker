@@ -31,8 +31,8 @@ extends INode<IEventsList> {
   start(): Promise<void>;
   stop(): Promise<void>;
 
-  fetch(query: any): Promise<any[]>;
-  parse(document: any, index: number, query: any, tracker: TTracker): Promise<ITrackerItem>;
+  fetch(item: ITE): Promise<any[]>;
+  parse(document: any, index: number, item: ITE): Promise<ITrackerItem>;
 
   trackings: { [id: string]: ITE };
 
@@ -74,7 +74,7 @@ function mixin<T extends TClass<IInstance>>(
       throw new Error('Method fetch must defined in this class!');
     }
   
-    async parse(data, newIndex, query, tracker) {
+    async parse(data, newIndex, { tracker }) {
       const id = data.id;
       const oldVersion = tracker.memory[data.id];
       const isChanged = !_.isEqual(data, (oldVersion || {}));
@@ -111,8 +111,8 @@ function mixin<T extends TClass<IInstance>>(
   
     async override(item) {
       const { query, tracker } = item;
-      const records = await this.fetch(query);
-      const data = await Promise.all(_.map(records, (d,i) => this.parse(d, i, query, tracker)));
+      const records = await this.fetch(item);
+      const data = await Promise.all(_.map(records, (d,i) => this.parse(d, i, item)));
       tracker.override(data);
       this.emit('overrided', item);
     }
