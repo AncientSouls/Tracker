@@ -11,7 +11,7 @@ declare class TestTracking extends Tracking {
     interval: any;
     start(db?: Database): Promise<void>;
     stop(): Promise<void>;
-    fetch(query: any): Promise<any[]>;
+    fetch(item: any): Promise<any[]>;
 }
 declare const newAsketicTrackerStart: (tracking: TestTracking, query: IQuery) => IAsketicTrackerAsk;
 export { TestTracking, delay, exec, fetch, startDb, newAsketicTrackerStart };

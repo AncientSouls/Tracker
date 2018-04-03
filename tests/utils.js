@@ -60,8 +60,8 @@ class TestTracking extends tracking_1.Tracking {
             yield _super("stop").call(this);
         });
     }
-    fetch(query) {
-        return fetch(this.db, query);
+    fetch(item) {
+        return fetch(this.db, item.query);
     }
 }
 exports.TestTracking = TestTracking;

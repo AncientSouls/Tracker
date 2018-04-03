@@ -10,8 +10,8 @@ interface ITrackingItem {
 interface ITracking<ITE extends ITrackingItem, IEventsList extends ITrackingEventsList<ITrackingItem>> extends INode<IEventsList> {
     start(): Promise<void>;
     stop(): Promise<void>;
-    fetch(query: any): Promise<any[]>;
-    parse(document: any, index: number, query: any, tracker: TTracker): Promise<ITrackerItem>;
+    fetch(item: ITE): Promise<any[]>;
+    parse(document: any, index: number, item: ITE): Promise<ITrackerItem>;
     trackings: {
         [id: string]: ITE;
     };
