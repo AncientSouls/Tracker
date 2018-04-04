@@ -25,9 +25,17 @@ import {
   IQueryFlow,
 } from 'ancient-asket/lib/asket';
 
-type TAsketicTracker =  IAsketicTracker<IAsketicTrackerEventsList>;
+import {
+  TAdapter,
+  IAdapter,
+  IAdapterEventsList,
+  IAdapterItem,
+  IAdapterClient,
+} from '../lib/adapter';
 
-interface IAsketicTrackerItem {
+export type TAsketicTracker =  IAsketicTracker<IAsketicTrackerEventsList>;
+
+export interface IAsketicTrackerItem {
   asketicTracker: TAsketicTracker;
   item: ITrackerItem;
   result: any;
@@ -35,19 +43,19 @@ interface IAsketicTrackerItem {
   flow: IQueryFlow;
 }
 
-interface IAsketicTrackerTracking {
+export interface IAsketicTrackerTracking {
   asketicTracker: TAsketicTracker;
   tracker: TTracker;
   path: string;
   flow: IQueryFlow;
 }
 
-interface IAsketicTrackerSubscribing {
+export interface IAsketicTrackerSubscribing {
   asketicTracker: TAsketicTracker;
   results?: any;
 }
 
-interface IAsketicTrackerEventsList extends INodeEventsList {
+export interface IAsketicTrackerEventsList extends INodeEventsList {
   added: IAsketicTrackerItem;
   changed: IAsketicTrackerItem;
   removed: IAsketicTrackerItem;
@@ -59,11 +67,11 @@ interface IAsketicTrackerEventsList extends INodeEventsList {
   unsubscribed: IAsketicTrackerSubscribing;
 }
 
-interface IAsketicTrackerAsk {
+export interface IAsketicTrackerAsk {
   (tracker: TTracker): Promise<any>;
 }
 
-interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList>
+export interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList>
 extends INode<IEventsList> {
   trackerClass: TClass<TTracker>;
   isStarted: boolean;
@@ -89,7 +97,7 @@ extends INode<IEventsList> {
   unsubscribe(): Promise<void>;
 }
 
-function mixin<T extends TClass<IInstance>>(
+export function mixin<T extends TClass<IInstance>>(
   superClass: T,
   trackerClass: T,
 ): any {
@@ -128,6 +136,10 @@ function mixin<T extends TClass<IInstance>>(
           path: flow.env.nextPath,
         },
       };
+    }
+
+    resolveItemsTracker(flow, tracker, adapter, query) {
+      return this.resolveItemsArray(flow, wrapTracker(tracker, adapter, query));
     }
 
     resolveDefault(flow) {
@@ -274,19 +286,17 @@ function mixin<T extends TClass<IInstance>>(
   };
 }
 
-const MixedAsketicTracker: TClass<TAsketicTracker> = mixin(Node, Tracker);
-class AsketicTracker extends MixedAsketicTracker {}
+export const MixedAsketicTracker: TClass<TAsketicTracker> = mixin(Node, Tracker);
+export class AsketicTracker extends MixedAsketicTracker {}
 
-export {
-  mixin as default,
-  mixin,
-  MixedAsketicTracker,
-  AsketicTracker,
-  IAsketicTracker,
-  IAsketicTrackerEventsList,
-  TAsketicTracker,
-  IAsketicTrackerItem,
-  IAsketicTrackerTracking,
-  IAsketicTrackerSubscribing,
-  IAsketicTrackerAsk,
+export const wrapTracker = async (tracker, adapter, query) => {
+  const trackerAddedListener = item => items.splice(item.newIndex, 0, item);
+  tracker.init(adapter.track(query));
+  
+  const items = [];
+  tracker.on('added', trackerAddedListener);
+  await tracker.subscribe();
+  tracker.off('added', trackerAddedListener);
+
+  return items;
 };

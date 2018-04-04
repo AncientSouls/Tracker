@@ -2,25 +2,25 @@ import { TClass, IInstance } from 'ancient-mixins/lib/mixins';
 import { INode, INodeEventsList } from 'ancient-mixins/lib/node';
 import { ITrackerItem, ITrackerStart, TTracker } from './tracker';
 import { IQueryResolver, IQueryFlow } from 'ancient-asket/lib/asket';
-declare type TAsketicTracker = IAsketicTracker<IAsketicTrackerEventsList>;
-interface IAsketicTrackerItem {
+export declare type TAsketicTracker = IAsketicTracker<IAsketicTrackerEventsList>;
+export interface IAsketicTrackerItem {
     asketicTracker: TAsketicTracker;
     item: ITrackerItem;
     result: any;
     path: string;
     flow: IQueryFlow;
 }
-interface IAsketicTrackerTracking {
+export interface IAsketicTrackerTracking {
     asketicTracker: TAsketicTracker;
     tracker: TTracker;
     path: string;
     flow: IQueryFlow;
 }
-interface IAsketicTrackerSubscribing {
+export interface IAsketicTrackerSubscribing {
     asketicTracker: TAsketicTracker;
     results?: any;
 }
-interface IAsketicTrackerEventsList extends INodeEventsList {
+export interface IAsketicTrackerEventsList extends INodeEventsList {
     added: IAsketicTrackerItem;
     changed: IAsketicTrackerItem;
     removed: IAsketicTrackerItem;
@@ -31,10 +31,10 @@ interface IAsketicTrackerEventsList extends INodeEventsList {
     subscribed: IAsketicTrackerSubscribing;
     unsubscribed: IAsketicTrackerSubscribing;
 }
-interface IAsketicTrackerAsk {
+export interface IAsketicTrackerAsk {
     (tracker: TTracker): Promise<any>;
 }
-interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList> extends INode<IEventsList> {
+export interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList> extends INode<IEventsList> {
     trackerClass: TClass<TTracker>;
     isStarted: boolean;
     ask: IAsketicTrackerAsk;
@@ -51,8 +51,8 @@ interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList> extends
     subscribe(): Promise<any>;
     unsubscribe(): Promise<void>;
 }
-declare function mixin<T extends TClass<IInstance>>(superClass: T, trackerClass: T): any;
-declare const MixedAsketicTracker: TClass<TAsketicTracker>;
-declare class AsketicTracker extends MixedAsketicTracker {
+export declare function mixin<T extends TClass<IInstance>>(superClass: T, trackerClass: T): any;
+export declare const MixedAsketicTracker: TClass<TAsketicTracker>;
+export declare class AsketicTracker extends MixedAsketicTracker {
 }
-export { mixin as default, mixin, MixedAsketicTracker, AsketicTracker, IAsketicTracker, IAsketicTrackerEventsList, TAsketicTracker, IAsketicTrackerItem, IAsketicTrackerTracking, IAsketicTrackerSubscribing, IAsketicTrackerAsk };
+export declare const wrapTracker: (tracker: any, adapter: any, query: any) => Promise<any[]>;
