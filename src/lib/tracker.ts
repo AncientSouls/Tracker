@@ -82,6 +82,8 @@ export function mixin<T extends TClass<IInstance>>(
         throw new Error(`Started tracker ${this.id} cant be inited.`);
       }
       this.start = start;
+
+      return this;
     }
 
     async subscribe() {
@@ -167,13 +169,6 @@ export function mixin<T extends TClass<IInstance>>(
       _.each(_.cloneDeep(this.ids), (id) => {
         this.remove({ id });
       });
-    }
-
-    destroy() {
-      if (this.isStarted) {
-        throw new Error(`Started tracker ${this.id} cant be destroyed.`);
-      }
-      super.destroy();
     }
   };
 }
