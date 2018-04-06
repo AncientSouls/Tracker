@@ -24,7 +24,7 @@ exports.default = () => {
             }
             fetch(item) {
                 return __awaiter(this, void 0, void 0, function* () {
-                    return (item.query ? results : _.reverse(results)).slice(2, 4);
+                    return _.cloneDeep((item.query ? results : _.reverse(results)).slice(2, 4));
                 });
             }
         }

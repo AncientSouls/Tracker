@@ -119,6 +119,7 @@ export function mixin<T extends TClass<IInstance>>(
 
     change(item) {
       item.oldIndex = this.ids.indexOf(item.id);
+      const _ids = _.cloneDeep(this.ids);
 
       if (item.oldIndex !== item.newIndex) {
         this.ids.splice(item.oldIndex, 1);
@@ -126,9 +127,9 @@ export function mixin<T extends TClass<IInstance>>(
       }
       
       this.memory[item.id] = item.memory;
-
+      
       item.tracker = this;
-
+      
       this.emit('changed', item);
     }
 

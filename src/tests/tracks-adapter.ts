@@ -17,7 +17,7 @@ export default () => {
 
     class TestTracksAdapter extends TracksAdapter  {
       async fetch(item) {
-        if (!item.memory) item.memory = (item.query ? results : _.reverse(results)).slice(2, 4);
+        if (!item.memory) item.memory = _.cloneDeep((item.query ? results : _.reverse(results)).slice(2, 4));
         return item.memory;
       }
     }

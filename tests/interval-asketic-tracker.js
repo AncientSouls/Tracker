@@ -11,21 +11,57 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const _ = require("lodash");
 const interval_adapter_1 = require("../lib/interval-adapter");
 const tracker_1 = require("../lib/tracker");
+const asketic_tracker_1 = require("../lib/asketic-tracker");
 const tracker_test_1 = require("./tracker-test");
+const asketic_tracker_test_1 = require("./asketic-tracker-test");
+const bundles_1 = require("../lib/bundles");
+const cursor_1 = require("ancient-cursor/lib/cursor");
 exports.default = () => {
-    it('IntervalAdapter:', () => __awaiter(this, void 0, void 0, function* () {
+    it('IntervalAsketicTracker:', () => __awaiter(this, void 0, void 0, function* () {
+        const at = new asketic_tracker_1.AsketicTracker();
         let results = [];
         class TestIntervalAdapter extends interval_adapter_1.IntervalAdapter {
             fetch(item) {
                 return __awaiter(this, void 0, void 0, function* () {
-                    return _.cloneDeep((item.query ? results : _.reverse(results)).slice(2, 4));
+                    const flow = item.query;
+                    if (flow.schema.options.query === 1)
+                        return _.cloneDeep(results.slice(2, 4));
+                    if (flow.schema.options.query === 2) {
+                        return _.cloneDeep(_.filter(results, r => r.num === flow.env.item.data.num));
+                    }
+                    throw new Error('wtf');
                 });
             }
         }
         const adapter = new TestIntervalAdapter();
-        const tracker = new tracker_1.Tracker();
         adapter.start({ interval: 1 });
-        yield tracker_test_1.default(adapter, tracker, 1, 0, () => __awaiter(this, void 0, void 0, function* () {
+        const resolver = (flow) => __awaiter(this, void 0, void 0, function* () {
+            if (flow.env.type === 'root') {
+                if (flow.name === 'query') {
+                    return yield at.flowTracker(flow, new tracker_1.Tracker().init(adapter.track(flow)));
+                }
+            }
+            if (flow.env.type === 'items') {
+                return at.flowItem(flow);
+            }
+            if (flow.env.type === 'item') {
+                if (flow.name === 'query') {
+                    return yield at.flowTracker(flow, new tracker_1.Tracker().init(adapter.track(flow)));
+                }
+                return at.flowValue(flow);
+            }
+            throw new Error('wtf');
+        });
+        at.init({
+            query: asketic_tracker_test_1.query,
+            resolver,
+        });
+        const cursor = new cursor_1.Cursor();
+        bundles_1.trackerToBundles(at, (bundles, event, e) => {
+            _.each(bundles, b => cursor.apply(b));
+        });
+        const result = yield at.subscribe();
+        yield asketic_tracker_test_1.default(cursor, () => __awaiter(this, void 0, void 0, function* () {
             results = _.times(6, i => ({ id: i + 1, num: i + 1 }));
             yield tracker_test_1.delay(5);
         }), () => __awaiter(this, void 0, void 0, function* () {
@@ -52,4 +88,4 @@ exports.default = () => {
         yield adapter.stop();
     }));
 };
-//# sourceMappingURL=interval-adapter.js.map
+//# sourceMappingURL=interval-asketic-tracker.js.map

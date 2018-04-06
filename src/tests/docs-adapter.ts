@@ -21,7 +21,7 @@ export default () => {
         trackedItem = item;
       }
       async fetch(item) {
-        return (item.query ? results : _.reverse(results)).slice(2, 4);
+        return _.cloneDeep((item.query ? results : _.reverse(results)).slice(2, 4));
       }
     }
 

@@ -19,7 +19,7 @@ exports.default = () => {
             fetch(item) {
                 return __awaiter(this, void 0, void 0, function* () {
                     if (!item.memory)
-                        item.memory = (item.query ? results : _.reverse(results)).slice(2, 4);
+                        item.memory = _.cloneDeep((item.query ? results : _.reverse(results)).slice(2, 4));
                     return item.memory;
                 });
             }
