@@ -1,7 +1,7 @@
 import { TClass, IInstance } from 'ancient-mixins/lib/mixins';
 import { INode, INodeEventsList } from 'ancient-mixins/lib/node';
-declare type TTracker = ITracker<ITrackerEventsList>;
-interface ITrackerItem {
+export declare type TTracker = ITracker<ITrackerEventsList>;
+export interface ITrackerItem {
     id: string;
     data?: any;
     oldIndex?: number;
@@ -10,23 +10,23 @@ interface ITrackerItem {
     changed?: boolean;
     tracker?: TTracker;
 }
-interface ITrackerEventData {
+export interface ITrackerEventData {
     tracker?: TTracker;
 }
-interface ITrackerEventsList extends INodeEventsList {
+export interface ITrackerEventsList extends INodeEventsList {
     added: ITrackerItem;
     changed: ITrackerItem;
     removed: ITrackerItem;
     subscribed: ITrackerEventData;
     unsubscribed: ITrackerEventData;
 }
-interface ITrackerStop {
+export interface ITrackerStop {
     (): Promise<void>;
 }
-interface ITrackerStart {
+export interface ITrackerStart {
     (tracker: TTracker): Promise<ITrackerStop>;
 }
-interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEventsList> {
+export interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEventsList> {
     ids: string[];
     memory: {
         [id: string]: any;
@@ -44,8 +44,7 @@ interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEvents
     subscribe(): Promise<void>;
     unsubscribe(): Promise<void>;
 }
-declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
-declare const MixedTracker: TClass<TTracker>;
-declare class Tracker extends MixedTracker {
+export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
+export declare const MixedTracker: TClass<TTracker>;
+export declare class Tracker extends MixedTracker {
 }
-export { mixin as default, mixin, MixedTracker, Tracker, ITracker, ITrackerEventsList, TTracker, ITrackerItem, ITrackerEventData, ITrackerStart, ITrackerStop };

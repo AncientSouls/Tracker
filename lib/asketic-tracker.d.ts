@@ -1,58 +1,37 @@
 import { TClass, IInstance } from 'ancient-mixins/lib/mixins';
 import { INode, INodeEventsList } from 'ancient-mixins/lib/node';
-import { ITrackerItem, ITrackerStart, TTracker } from './tracker';
-import { IQueryResolver, IQueryFlow } from 'ancient-asket/lib/asket';
-declare type TAsketicTracker = IAsketicTracker<IAsketicTrackerEventsList>;
-interface IAsketicTrackerItem {
+import { ITrackerItem, TTracker } from './tracker';
+import { IQueryFlow } from 'ancient-asket/lib/asket';
+export declare type TAsketicTracker = IAsketicTracker<IAsketicTrackerEventsList>;
+export interface IAsketicTrackerFlowEnv {
+    type: 'root' | 'item' | 'value';
+    [key: string]: any;
+}
+export interface IAsketicTrackerFlow extends IQueryFlow {
+    env: IAsketicTrackerFlowEnv;
+}
+export interface IAsketicTrackerItem {
     asketicTracker: TAsketicTracker;
-    item: ITrackerItem;
-    result: any;
-    path: string;
     flow: IQueryFlow;
+    result?: any;
+    item?: ITrackerItem;
+    path?: string[];
 }
-interface IAsketicTrackerTracking {
-    asketicTracker: TAsketicTracker;
-    tracker: TTracker;
-    path: string;
-    flow: IQueryFlow;
-}
-interface IAsketicTrackerSubscribing {
-    asketicTracker: TAsketicTracker;
-    results?: any;
-}
-interface IAsketicTrackerEventsList extends INodeEventsList {
+export interface IAsketicTrackerEventsList extends INodeEventsList {
     added: IAsketicTrackerItem;
     changed: IAsketicTrackerItem;
     removed: IAsketicTrackerItem;
-    track: IAsketicTrackerTracking;
-    tracked: IAsketicTrackerTracking;
-    untrack: IAsketicTrackerTracking;
-    untracked: IAsketicTrackerTracking;
-    subscribed: IAsketicTrackerSubscribing;
-    unsubscribed: IAsketicTrackerSubscribing;
+    subscribe: IAsketicTrackerItem;
+    subscribed: IAsketicTrackerItem;
+    unsubscribe: IAsketicTrackerItem;
+    unsubscribed: IAsketicTrackerItem;
 }
-interface IAsketicTrackerAsk {
+export interface IAsketicTrackerAsk {
     (tracker: TTracker): Promise<any>;
 }
-interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList> extends INode<IEventsList> {
-    trackerClass: TClass<TTracker>;
-    isStarted: boolean;
-    ask: IAsketicTrackerAsk;
-    trackers: TTracker[];
-    init(start?: ITrackerStart): this;
-    resolveItemData(flow: IQueryFlow, data: any): IQueryFlow;
-    resolveItemsArray(flow: IQueryFlow, items: ITrackerItem[]): IQueryFlow;
-    resolveDefault(flow: IQueryFlow): IQueryFlow;
-    watchTracker(tracker: TTracker, flow: IQueryFlow): void;
-    track(flow?: IQueryFlow): TTracker;
-    untrack(tracker: TTracker, flow?: IQueryFlow): Promise<void>;
-    createResolver(resolver: IQueryResolver): IQueryResolver;
-    asket(flow: any): Promise<IQueryFlow>;
-    subscribe(): Promise<any>;
-    unsubscribe(): Promise<void>;
+export interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList> extends INode<IEventsList> {
 }
-declare function mixin<T extends TClass<IInstance>>(superClass: T, trackerClass: T): any;
-declare const MixedAsketicTracker: TClass<TAsketicTracker>;
-declare class AsketicTracker extends MixedAsketicTracker {
+export declare function mixin<T extends TClass<IInstance>>(superClass: T, trackerClass: T): any;
+export declare const MixedAsketicTracker: TClass<TAsketicTracker>;
+export declare class AsketicTracker extends MixedAsketicTracker {
 }
-export { mixin as default, mixin, MixedAsketicTracker, AsketicTracker, IAsketicTracker, IAsketicTrackerEventsList, TAsketicTracker, IAsketicTrackerItem, IAsketicTrackerTracking, IAsketicTrackerSubscribing, IAsketicTrackerAsk };

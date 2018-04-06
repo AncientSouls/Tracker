@@ -25,210 +25,84 @@ import {
   IQueryFlow,
 } from 'ancient-asket/lib/asket';
 
-type TAsketicTracker =  IAsketicTracker<IAsketicTrackerEventsList>;
+import {
+  TAdapter,
+  IAdapter,
+  IAdapterEventsList,
+  IAdapterItem,
+  IAdapterClient,
+} from '../lib/adapter';
 
-interface IAsketicTrackerItem {
+export type TAsketicTracker =  IAsketicTracker<IAsketicTrackerEventsList>;
+
+export interface IAsketicTrackerFlowEnv {
+  type: 'root' | 'item' | 'value';
+  [key: string]: any;
+}
+
+export interface IAsketicTrackerFlow extends IQueryFlow {
+  env: IAsketicTrackerFlowEnv;
+}
+
+export interface IAsketicTrackerItem {
   asketicTracker: TAsketicTracker;
-  item: ITrackerItem;
-  result: any;
-  path: string;
   flow: IQueryFlow;
+  result?: any;
+  item?: ITrackerItem;
+  path?: string[];
 }
 
-interface IAsketicTrackerTracking {
-  asketicTracker: TAsketicTracker;
-  tracker: TTracker;
-  path: string;
-  flow: IQueryFlow;
-}
-
-interface IAsketicTrackerSubscribing {
-  asketicTracker: TAsketicTracker;
-  results?: any;
-}
-
-interface IAsketicTrackerEventsList extends INodeEventsList {
+export interface IAsketicTrackerEventsList extends INodeEventsList {
   added: IAsketicTrackerItem;
   changed: IAsketicTrackerItem;
   removed: IAsketicTrackerItem;
-  track: IAsketicTrackerTracking;
-  tracked: IAsketicTrackerTracking;
-  untrack: IAsketicTrackerTracking;
-  untracked: IAsketicTrackerTracking;
-  subscribed: IAsketicTrackerSubscribing;
-  unsubscribed: IAsketicTrackerSubscribing;
+  subscribe: IAsketicTrackerItem;
+  subscribed: IAsketicTrackerItem;
+  unsubscribe: IAsketicTrackerItem;
+  unsubscribed: IAsketicTrackerItem;
 }
 
-interface IAsketicTrackerAsk {
+export interface IAsketicTrackerAsk {
   (tracker: TTracker): Promise<any>;
 }
 
-interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList>
+export interface IAsketicTracker<IEventsList extends IAsketicTrackerEventsList>
 extends INode<IEventsList> {
-  trackerClass: TClass<TTracker>;
-  isStarted: boolean;
-
-  ask: IAsketicTrackerAsk;
-  trackers: TTracker[];
-
-  init(start?: ITrackerStart): this;
-
-  resolveItemData(flow: IQueryFlow, data: any): IQueryFlow;
-  resolveItemsArray(flow: IQueryFlow, items: ITrackerItem[]): IQueryFlow;
-  resolveDefault(flow: IQueryFlow): IQueryFlow;
-
-  watchTracker(tracker: TTracker, flow: IQueryFlow): void;
-
-  track(flow?: IQueryFlow): TTracker;
-  untrack(tracker: TTracker, flow?: IQueryFlow): Promise<void>;
-
-  createResolver(resolver: IQueryResolver): IQueryResolver;
-  asket(flow): Promise<IQueryFlow>;
-
-  subscribe(): Promise<any>;
-  unsubscribe(): Promise<void>;
 }
 
-function mixin<T extends TClass<IInstance>>(
+export function mixin<T extends TClass<IInstance>>(
   superClass: T,
   trackerClass: T,
 ): any {
   return class AsketicTracker extends superClass {
-    trackerClass = trackerClass;
-    isStarted = false;
-    trackers = [];
-    
-    init(ask) {
+    public _flow;
+    public isActive = false;
+    public actions = [];
+
+    init(flow) {
       if (this.isStarted) {
         throw new Error(`Started tracker ${this.id} cant be inited.`);
       }
-      this.ask = ask;
-    }
 
-    resolveItemData(flow, data) {
-      return {
-        ...flow,
-        data,
-        env: {
-          ...flow.env,
-          item: flow.data,
-          type: 'data',
-          path: flow.env.nextPath,
-        },
-      };
-    }
-
-    resolveItemsArray(flow, items) {
-      return {
-        ...flow,
-        data: items,
-        env: {
-          ...flow.env,
-          type: 'items',
-          path: flow.env.nextPath,
-        },
-      };
-    }
-
-    resolveDefault(flow) {
-      return {
-        ...flow,
-        env: {
-          ...flow.env,
-          type: 'query',
-          path: flow.env.nextPath,
-        },
-      };
-    }
-
-    watchTracker(tracker, flow) {
-      tracker.on('added', async (item) => {
-        const itemPath = [...flow.env.nextPath, item.newIndex];
-        const result = await this.asket({
-          ...flow,
-          query: { schema: flow.schema },
-          data: item,
-          env: {
-            ...flow.env,
-            type: 'items',
-            path: itemPath,
-          },
-        });
-        this.emit('added', {
-          item, result, flow,
-          asketicTracker: this,
-          path: flow.env.nextPath,
-        });
-      });
-
-      tracker.on('changed', async (item) => {
-        const itemPath = [...flow.env.nextPath, item.newIndex];
-        const result = await this.asket({
-          ...flow,
-          query: { schema: flow.schema },
-          data: item,
-          env: {
-            ...flow.env,
-            type: 'items',
-            path: itemPath,
-          },
-        });
-        this.emit('changed', {
-          item, result, flow,
-          asketicTracker: this,
-          path: flow.env.nextPath,
-        });
-      });
-
-      tracker.on('removed', (item) => {
-        this.emit('removed', {
-          item, flow,
-          asketicTracker: this,
-          path: flow.env.nextPath,
-        });
-      });
-
-      if (flow.env.item) {
-        const parent = flow.env.item.tracker;
-        parent.on('destroyed', () => tracker.isStarted && this.untrack(tracker, flow));
-        parent.on('removed', ({ id }) => {
-          id === flow.env.item.id && this.untrack(tracker, flow);
-        });
-        parent.on('changed', ({ id }) => {
-          id === flow.env.item.id && this.untrack(tracker, flow);
-        });
-      }
-    }
-
-    track(flow?) {
-      const tracker = new this.trackerClass();
-      this.trackers.push(tracker);
-      tracker.once('subscribed', () => {
-        this.emit('tracked', { flow, tracker, asketicTracker: this });
-        this.watchTracker(tracker, flow);
-      });
-      this.emit('track', { flow, tracker, asketicTracker: this });
-      return tracker;
-    }
-
-    async untrack(tracker, flow?) {
-      this.emit('untrack', { flow, tracker, asketicTracker: this });
-      await tracker.unsubscribe();
-      _.remove(this.trackers, t => t === tracker);
-      this.emit('untracked', { flow, tracker, asketicTracker: this });
-      tracker.destroy();
+      this._flow = flow;
     }
 
     async subscribe() {
+      if (!_.isObject(this.flow)) {
+        throw new Error(`Flow must be Asket TQueryFlow but: ${this.flow}`);
+      }
       if (this.isStarted) {
         throw new Error(`Started asketic tracker ${this.id} cant be subscribed.`);
       }
       this.isStarted = true;
 
-      const results = await this.ask(this);
-      this.emit('subscribed', { results, asketicTracker: this });
+      this.emit('subscribe', { asketicTracker: this });
 
-      return results;
+      const result = await this.asket(this.flowRoot(this._flow));
+
+      this.emit('subscribed', { result, asketicTracker: this });
+
+      return result;
     }
 
     async unsubscribe() {
@@ -236,6 +110,8 @@ function mixin<T extends TClass<IInstance>>(
         throw new Error(`Not started asketic tracker ${this.id} cant be unsubscribed.`);
       }
       this.isStarted = false;
+
+      this.emit('unsubscribe', { asketicTracker: this });
 
       const trackers = _.map(this.trackers, t => this.untrack(t));
       await Promise.all(trackers);
@@ -245,48 +121,149 @@ function mixin<T extends TClass<IInstance>>(
       return this;
     }
 
-    createResolver(resolver) {
-      return (flow) => {
-        flow.env.name = _.get(flow, 'schema.name');
-        flow.env.nextPath = !_.isUndefined(flow.key) ? [...flow.env.path, flow.key] : flow.env.path;
-        return resolver(flow);
+    asket(flow) {
+      const resolver = flow.resolver;
+      flow.resolver = async (flow) => {
+        const f = await resolver(flow);
+        return f;
       };
+      return asket(flow);
     }
 
-    asket(flow) {
-      return asket({
-        ...flow,
-        env: {
-          item: null,
-          path: [],
-          type: 'query',
-          ...flow.env,
-        },
-      });
-    }
-    
-    destroy() {
-      if (this.isStarted) {
-        throw new Error(`Started asketic tracker ${this.id} cant be destroyed.`);
+    getDataPath(path) {
+      const result = [];
+      let p;
+      let actualIndex;
+      for (p = 0; p < path.length; p++) {
+        if (path[p].env.type === 'root') continue;
+        else if (path[p].env.type === 'item') {
+          actualIndex = path[p].env.tracker.ids.indexOf(path[p].env.item.id);
+          result.push(actualIndex, path[p].key);
+        } else result.push(path[p].key);
       }
-      super.destroy();
+      return result;
+    }
+
+    addAction(action) {
+      this.actions.push(action);
+      this.nextAction();
+    }
+
+    async nextAction() {
+      if (!this.isActive && this.actions.length) {
+        this.isActive = true;
+        const action = this.actions.shift();
+        await action();
+        this.isActive = false;
+        this.nextAction();
+      }
+    }
+
+    flow(prevFlow) {
+      return { ...prevFlow, env: { ...prevFlow.env } };
+    }
+
+    async flowTracker(prevFlow, tracker) {
+      const flow = this.flowItems(prevFlow);
+
+      const parentTracker = flow.env.tracker;
+      flow.env.tracker = tracker; // context of tracker
+
+      flow.data = []; // tracker items
+      const trackerAddedListener = item => flow.data.splice(item.newIndex, 0, item);
+
+      tracker.on('added', trackerAddedListener);
+      await tracker.subscribe();
+      tracker.off('added', trackerAddedListener);
+      
+      const flowItems = this.flowItems(flow);
+
+      // watch childs changes
+
+      tracker.on('added', (item) => {
+        this.addAction(async () => {
+          const flow = { ...flowItems, data: item, path: [] };
+          const result = await this.asket(flow);
+          this.emit('added', {
+            item, result, flow, asketicTracker: this,
+            path: this.getDataPath(flowItems.path),
+          });
+        });
+      });
+
+      tracker.on('changed', (item) => {
+        this.addAction(async () => {
+          const flow = { ...flowItems, data: item, path: [] };
+          const result = await this.asket(flow);
+          this.emit('changed', {
+            item, result, flow, asketicTracker: this,
+            path: this.getDataPath(flowItems.path),
+          });
+        });
+      });
+
+      tracker.on('removed', async (item) => {
+        this.addAction(async () => {
+          this.emit('removed', {
+            item, flow, asketicTracker: this,
+            path: this.getDataPath(flowItems.path),
+          });
+        });
+      });
+
+      // watch parent changes
+
+      if (parentTracker) {
+        parentTracker.once('destroyed', () => {
+          if (tracker.isStarted) {
+            tracker.unsubscribe();
+            tracker.destroy();
+          }
+        });
+        parentTracker.on('removed', ({ id }) => {
+          if (tracker.isStarted && id === flow.env.item.id) {
+            tracker.unsubscribe();
+            tracker.destroy();
+          }
+        });
+        parentTracker.on('changed', ({ id }) => {
+          if (tracker.isStarted && id === flow.env.item.id) {
+            tracker.unsubscribe();
+            tracker.destroy();
+          }
+        });
+      }
+
+      return flowItems;
+    }
+
+    flowItems(prevFlow) {
+      const flow = this.flow(prevFlow);
+      flow.env.type = 'items';
+      return flow;
+    }
+
+    flowRoot(prevFlow) {
+      const flow = this.flow(prevFlow);
+      flow.env.type = 'root';
+      return flow;
+    }
+
+    flowItem(prevFlow) {
+      const flow = this.flow(prevFlow);
+      flow.env.item = flow.data; // context of item
+      flow.data = flow.data.data; // unpack tracker item
+      flow.env.type = 'item';
+      return flow;
+    }
+
+    flowValue(prevFlow) {
+      const flow = this.flow(prevFlow);
+      flow.env.type = 'value';
+      return flow;
     }
   };
 }
 
-const MixedAsketicTracker: TClass<TAsketicTracker> = mixin(Node, Tracker);
-class AsketicTracker extends MixedAsketicTracker {}
-
-export {
-  mixin as default,
-  mixin,
-  MixedAsketicTracker,
-  AsketicTracker,
-  IAsketicTracker,
-  IAsketicTrackerEventsList,
-  TAsketicTracker,
-  IAsketicTrackerItem,
-  IAsketicTrackerTracking,
-  IAsketicTrackerSubscribing,
-  IAsketicTrackerAsk,
-};
+export const MixedAsketicTracker: TClass<TAsketicTracker> = mixin(Node, Tracker);
+export class AsketicTracker extends MixedAsketicTracker {}
