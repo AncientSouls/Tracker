@@ -18,33 +18,33 @@ interface ITrackerToBundlesCallback<IEventsList> {
 }
 
 const trackerToBundles = (
-  tracker: TAsketicTracker,
+  asketicTracker: TAsketicTracker,
   callback: ITrackerToBundlesCallback<IAsketicTrackerEventsList>,
 ): void => {
-  tracker.on('added', (eventData) => {
+  asketicTracker.on('added', (eventData) => {
     const { item, result, path } = eventData;
     callback(
       [{
         path, type: 'splice',
         deleteCount: 0, start: item.newIndex,
-        values: [_.get(result, 'data')],
+        values: [_.cloneDeep(_.get(result, 'data'))],
       }],
       'added',
       eventData,
     );
   });
-  tracker.on('changed', (eventData) => {
+  asketicTracker.on('changed', (eventData) => {
     const { item, result, path } = eventData;
     const bundles = [];
     if (item.oldIndex !== item.newIndex) {
       bundles.push({ path, type: 'move', from: item.oldIndex, to: item.newIndex });
     }
     if (item.changed) {
-      bundles.push({ path: [...path, item.newIndex], type: 'set', value: result.data });
+      bundles.push({ path: [...path, item.newIndex], type: 'set', value: _.cloneDeep(result.data) });
     }
     callback(bundles, 'changed', eventData);
   });
-  tracker.on('removed', (eventData) => {
+  asketicTracker.on('removed', (eventData) => {
     const { item, result, path } = eventData;
     callback(
       [{
@@ -56,12 +56,12 @@ const trackerToBundles = (
       eventData,
     );
   });
-  tracker.on('subscribed', (eventData) => {
-    const { results } = eventData;
+  asketicTracker.on('subscribed', (eventData) => {
+    const { result } = eventData;
     callback(
       [{
         path: '', type: 'set',
-        value: results.data,
+        value: result.data,
       }],
       'subscribed',
       eventData,
