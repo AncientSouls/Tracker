@@ -1,30 +1,21 @@
-import { assert } from 'chai';
 import * as _ from 'lodash';
+import { assert } from 'chai';
 
 import {
-  TAdapter,
-  IAdapter,
-  IAdapterEventsList,
-  IAdapterItem,
-  IAdapterClient,
-} from '../lib/adapter';
-
-import {
-  TTracker,
-  ITracker,
-  ITrackerEventsList,
+  Tracker,
 } from '../lib/tracker';
 
 import {
-  IQuery,
-  IQueryResolver,
+  Client,
+} from '../lib/client';
+
+import {
   asket,
 } from 'ancient-asket/lib/asket';
 
 import {
-  TAsketicTracker,
-  IAsketicTrackerAsk,
-} from '../lib/asketic-tracker';
+  Asketic,
+} from '../lib/asketic';
 
 import {
   TCursor,
@@ -32,61 +23,21 @@ import {
   ICursorEventsList,
 } from 'ancient-cursor/lib/cursor';
 
-export interface ITestResult {
-  id: number;
-  num: number;
-}
+import {
+  dataToBundle,
+  asketicChangesToBundles,
+} from '../lib/bundles';
 
 export interface IO {
   (): Promise<any>;
 }
 
-export const query = {
-  schema: {
-    name: 'query',
-    options: {
-      query: 1,
-    },
-    fields: {
-      id: {},
-      num: {},
-      equal: {
-        name: 'query',
-        options: {
-          query: 2,
-        },
-        fields: {
-          id: {},
-        },
-      },
-    },
-  },
-};
-
-export const starter = adapter => async (asketicTracker) => {
-  const resolver = async (flow) => {
-    if (flow.env.type === 'items') {
-      return asketicTracker.resolveItemData(flow, _.get(flow, 'data.data'));
-    }
-    
-    if (flow.env.name === 'query') {
-      const tracker = asketicTracker.track(flow);
-      return asketicTracker.resolveItemsTracker(flow, tracker, adapter, flow);
-    }
-
-    return asketicTracker.resolveDefault(flow);
-  };
-  
-  return await asketicTracker.asket({
-    query,
-    resolver: asketicTracker.createResolver(resolver),
-  });
-};
+export interface IData {
+  a: { b: string; c: number; d: { b: string; }[] }[];
+}
 
 export default async (
-  // sort by num,id
   cursor: TCursor,
-  // [()]
   fill: IO, // 12[(34)]56
   insert9as3: IO, // 12[(39)]456
   change3to5: IO, // 12[(94)]356

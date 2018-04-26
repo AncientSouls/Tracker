@@ -1,18 +1,9 @@
 require('source-map-support').install();
 
-import intervalAdapter from './interval-adapter';
-import docsAdapter from './docs-adapter';
-import tracksAdapter from './tracks-adapter';
-
-import intervalAsketicTracker from './interval-asketic-tracker';
+import tracker from './tracker';
+import asketic from './asketic';
 
 describe('AncientSouls/Tracker:', () => {
-  describe('Adapter', () => {
-    intervalAdapter();
-    docsAdapter();
-    tracksAdapter();
-  });
-  describe('AsketicTracker', () => {
-    intervalAsketicTracker();
-  });
+  tracker();
+  asketic();
 });

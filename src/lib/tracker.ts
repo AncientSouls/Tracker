@@ -13,163 +13,151 @@ import {
 
 export type TTracker =  ITracker<ITrackerEventsList>;
 
-export interface ITrackerItem {
+export interface ITrackerChange {
   id: string;
-  data?: any;
-  oldIndex?: number;
-  newIndex?: number;
-  memory?: any;
+  item: any;
+  oldIndex: number;
+  newIndex: number;
   changed?: boolean;
-  tracker?: TTracker;
 }
 
-export interface ITrackerEventData {
-  tracker?: TTracker;
+export type ITrackerChanges = ITrackerChange[];
+
+export interface ITrackerChangeEvent {
+  tracker: TTracker;
+  change: ITrackerChange;
 }
 
 export interface ITrackerEventsList extends INodeEventsList {
-  added: ITrackerItem;
-  changed: ITrackerItem;
-  removed: ITrackerItem;
-  subscribed: ITrackerEventData;
-  unsubscribed: ITrackerEventData;
-}
-
-export interface ITrackerStop {
-  (): Promise<void>;
-}
-
-export interface ITrackerStart {
-  (tracker: TTracker): Promise<ITrackerStop>;
+  setted: { tracker: TTracker; current: any[]; update: any[]; };
+  getted: { tracker: TTracker; current: any[]; update: any[]; changes: ITrackerChanges; };
+  added: ITrackerChangeEvent;
+  changed: ITrackerChangeEvent;
+  removed: ITrackerChangeEvent;
 }
 
 export interface ITracker<IEventsList extends ITrackerEventsList> extends INode<IEventsList> {
-  ids: string[];
-  memory: { [id: string]: any };
-  isStarted: boolean;
-  needUnsubscribe: boolean;
+  indexes: { [id: string]: number };
+  current: any[];
+  update?: any[];
 
-  start?: ITrackerStart;
-  stop?: ITrackerStop;
+  idField: string;
 
-  add(item: ITrackerItem): void;
-  change(item: ITrackerItem): void;
-  remove(item: ITrackerItem): void;
-
-  override(items: ITrackerItem[]): void;
-  clean(): void;
-
-  init(start?: ITrackerStart): this;
-
-  subscribe(): Promise<void>;
-  unsubscribe(): Promise<void>;
+  isChanged(previous, current): boolean;
+  set(update: any[]): void;
+  get(handler?: (ITrackerChange) => ITrackerChange): Promise<ITrackerChanges>;
 }
 
 export function mixin<T extends TClass<IInstance>>(
   superClass: T,
 ): any {
   return class Tracker extends superClass {
-    ids = [];
-    memory = {};
-    isStarted = false;
-    needUnsubscribe = false;
+    indexes = {};
+    current = [];
+    update;
 
-    start = null;
-    stop = null;
-    
-    init(start) {
-      if (this.isStarted) {
-        throw new Error(`Started tracker ${this.id} cant be inited.`);
-      }
-      this.start = start;
+    idField = '_id';
 
-      return this;
-    }
-
-    async subscribe() {
-      if (this.isStarted) {
-        throw new Error(`Started tracker ${this.id} cant be subscribed.`);
-      }
-      this.stop = await this.start(this);
-      this.isStarted = true;
-      this.emit('subscribed', { tracker: this });
-      if (this.needUnsubscribe) await this.unsubscribe();
-    }
-
-    async unsubscribe() {
-      if (!this.isStarted) {
-        this.needUnsubscribe = true;
-      } else {
-        this.isStarted = false;
-        await this.stop();
-        this.emit('unsubscribed', { tracker: this });
-      }
-    }
-
-    add(item) {
-      this.memory[item.id] = item.memory;
-      this.ids.splice(item.newIndex, 0, item.id);
-
-      item.oldIndex = -1;
-      
-      item.tracker = this;
-
-      this.emit('added', item);
-    }
-
-    change(item) {
-      item.oldIndex = this.ids.indexOf(item.id);
-      const _ids = _.cloneDeep(this.ids);
-
-      if (item.oldIndex !== item.newIndex) {
-        this.ids.splice(item.oldIndex, 1);
-        this.ids.splice(item.newIndex, 0, item.id);
-      }
-      
-      this.memory[item.id] = item.memory;
-      
-      item.tracker = this;
-      
-      this.emit('changed', item);
-    }
-
-    remove(item) {
-      item.oldIndex = this.ids.indexOf(item.id);
-      item.newIndex = -1;
-
-      this.ids.splice(item.oldIndex, 1);
-      delete this.memory[item.id];
-
-      item.tracker = this;
-
-      this.emit('removed', item);
-    }
-
-    override(items) {
-      const ids = _.map(items, (i: any) => i.id);
-      const oldIds = _.difference(this.ids, ids);
-      
-      _.each(oldIds, (id) => {
-        this.remove({ id });
+    set(update) {
+      this.update = update;
+      this.emit('setted', {
+        tracker: this,
+        current: this.current,
+        update: this.update,
       });
-      _.each(items, (item) => {
-        if (_.has(this.memory, item.id)) {
-          if (
-            item.changed ||
-            item.newIndex !== this.ids.indexOf(item.id)
-          ) {
-            this.change(item);
+    }
+
+    isChanged(previous, current) {
+      return !_.isEqual(previous, current);
+    }
+
+    fetch = () => {
+      return this.update;
+    }
+
+    async get(handler) {
+      const update = await this.fetch();
+
+      if (_.isArray(update)) {
+        const removed = [];
+        const updated = [];
+
+        const indexes = {};
+
+        let i;
+        let changed;
+        for (i = 0; i < update.length; i++) {
+          indexes[update[i][this.idField]] = i;
+          if (_.has(this.indexes, update[i][this.idField])) {
+            changed = this.isChanged(this.current[this.indexes[update[i][this.idField]]], update[i]);
+            if (changed) {
+              let change = {
+                changed,
+                id: '' + update[i][this.idField],
+                item: update[i],
+                oldIndex: this.indexes[update[i][this.idField]],
+                newIndex: i,
+              };
+              if (handler) change = await handler(change);
+              this.emit('changed', { change, tracker: this });
+              updated.push(change);
+            }
+          } else {
+            let change = {
+              id: '' + update[i][this.idField],
+              item: update[i],
+              oldIndex: -1,
+              newIndex: i,
+            };
+            if (handler) change = await handler(change);
+            this.emit('added', { change, tracker: this });
+            updated.push(change);
           }
-        } else {
-          this.add(item);
         }
-      });
-    }
 
-    clean() {
-      _.each(_.cloneDeep(this.ids), (id) => {
-        this.remove({ id });
+        let id;
+        for (id in this.indexes) {
+          if (!_.has(indexes, id)) {
+            let change = {
+              id: '' + id,
+              item: this.current[this.indexes[id]],
+              oldIndex: this.indexes[id],
+              newIndex: -1,
+            };
+            if (handler) change = await handler(change);
+            this.emit('removed', { change, tracker: this });
+            removed.push(change);
+          }
+        }
+
+        this.indexes = indexes;
+        this.current = update;
+
+        this.updated = undefined;
+        
+        const changes = [
+          ...removed,
+          ...updated,
+        ];
+
+        this.emit('getted', {
+          changes,
+          tracker: this,
+          current: this.current,
+          update: this.update,
+        });
+        
+        return changes;
+      }
+
+      this.emit('getted', {
+        changes: [],
+        tracker: this,
+        current: this.current,
+        update: this.update,
       });
+
+      return [];
     }
   };
 }

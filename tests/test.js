@@ -9,44 +9,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
-const _ = require("lodash");
-exports.query = {
-    schema: {
-        name: 'query',
-        options: {
-            query: 1,
-        },
-        fields: {
-            id: {},
-            num: {},
-            equal: {
-                name: 'query',
-                options: {
-                    query: 2,
-                },
-                fields: {
-                    id: {},
-                },
-            },
-        },
-    },
-};
-exports.starter = adapter => (asketicTracker) => __awaiter(this, void 0, void 0, function* () {
-    const resolver = (flow) => __awaiter(this, void 0, void 0, function* () {
-        if (flow.env.type === 'items') {
-            return asketicTracker.resolveItemData(flow, _.get(flow, 'data.data'));
-        }
-        if (flow.env.name === 'query') {
-            const tracker = asketicTracker.track(flow);
-            return asketicTracker.resolveItemsTracker(flow, tracker, adapter, flow);
-        }
-        return asketicTracker.resolveDefault(flow);
-    });
-    return yield asketicTracker.asket({
-        query: exports.query,
-        resolver: asketicTracker.createResolver(resolver),
-    });
-});
 exports.default = (cursor, fill, insert9as3, change3to5, move3to6, move4to3, delete4) => __awaiter(this, void 0, void 0, function* () {
     chai_1.assert.deepEqual(cursor.data, []);
     yield fill();
@@ -80,4 +42,4 @@ exports.default = (cursor, fill, insert9as3, change3to5, move3to6, move4to3, del
         { id: 5, num: 5, equal: [{ id: 5 }] },
     ]);
 });
-//# sourceMappingURL=asketic-tracker-test.js.map
+//# sourceMappingURL=test.js.map
