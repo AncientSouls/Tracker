@@ -35,9 +35,11 @@ export interface ITracker<IEventsList extends ITrackerEventsList> extends INode<
     };
     current: any[];
     update?: any[];
+    query?: any;
     idField: string;
-    isChanged(previous: any, current: any): boolean;
     set(update: any[]): void;
+    isChanged(previous: any, current: any): boolean;
+    fetch: () => Promise<any[]> | any[];
     get(handler?: (ITrackerChange) => ITrackerChange): Promise<ITrackerChanges>;
 }
 export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;

@@ -26,6 +26,9 @@ export interface IClientEventsList extends IManagerEventsList {
 }
 
 export interface IClient<IN extends TTracker, IEventsList extends IClientEventsList> extends IManager<IN, IEventsList> {
+  isStarted: boolean;
+  client?: any;
+
   starting(): Promise<void>;
   stopping(): Promise<void>;
 
@@ -44,6 +47,7 @@ export function mixin<T extends TClass<IInstance>>(
 ): any {
   return class Client extends superClass {
     isStarted = false;
+    client;
     
     starting() {}
     stopping() {}

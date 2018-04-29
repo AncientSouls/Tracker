@@ -17,6 +17,8 @@ export interface IClientEventsList extends IManagerEventsList {
     };
 }
 export interface IClient<IN extends TTracker, IEventsList extends IClientEventsList> extends IManager<IN, IEventsList> {
+    isStarted: boolean;
+    client?: any;
     starting(): Promise<void>;
     stopping(): Promise<void>;
     start(): Promise<void>;
