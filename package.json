@@ -1,6 +1,6 @@
 {
   "name": "ancient-tracker",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Any database hierarchical queries and subscriptions.",
   "bugs": "https://github.com/AncientSouls/Tracker/issues",
   "repository": "AncientSouls/Tracker",
