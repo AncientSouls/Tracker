@@ -25,8 +25,6 @@ export interface IClient<IN extends TTracker, IEventsList extends IClientEventsL
     stop(): Promise<void>;
     tracking(tracker: any): void;
     untracking(tracker: any): void;
-    track(tracker: any): Promise<void>;
-    untrack(tracker: any): Promise<void>;
 }
 export declare function mixin<T extends TClass<IInstance>>(superClass: T): any;
 export declare const MixedClient: TClass<TClient>;

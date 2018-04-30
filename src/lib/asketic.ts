@@ -167,6 +167,10 @@ export function mixin<T extends TClass<IInstance>>(
           if (id === flow.env.item.id) tracker.destroy();
         });
       }
+      
+      this.once('destroyed', () => {
+        tracker.destroy();
+      });
 
       return flow;
     }

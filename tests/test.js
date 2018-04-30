@@ -9,7 +9,28 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const chai_1 = require("chai");
-exports.default = (cursor, fill, insert9as3, change3to5, move3to6, move4to3, delete4) => __awaiter(this, void 0, void 0, function* () {
+exports.query = {
+    schema: {
+        name: 'a',
+        options: {
+            query: 1,
+        },
+        fields: {
+            id: {},
+            num: {},
+            equal: {
+                name: 'b',
+                options: {
+                    query: 2,
+                },
+                fields: {
+                    id: {},
+                },
+            },
+        },
+    },
+};
+exports.test = (cursor, fill, insert9as3, change3to5, move3to6, move4to3, delete4) => __awaiter(this, void 0, void 0, function* () {
     chai_1.assert.deepEqual(cursor.data, []);
     yield fill();
     chai_1.assert.deepEqual(cursor.data, [
