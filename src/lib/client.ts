@@ -37,9 +37,6 @@ export interface IClient<IN extends TTracker, IEventsList extends IClientEventsL
 
   tracking(tracker): void;
   untracking(tracker): void;
-
-  track(tracker): Promise<void>;
-  untrack(tracker): Promise<void>;
 }
 
 export function mixin<T extends TClass<IInstance>>(
@@ -72,16 +69,16 @@ export function mixin<T extends TClass<IInstance>>(
 
     tracking(tracker) {}
 
-    async track(tracker) {
+    async add(tracker) {
       await this.tracking(tracker);
-      this.add(tracker);
+      super.add(tracker);
     }
 
     untracking(tracker) {}
 
-    async untrack(tracker) {
+    async remove(tracker) {
       await this.untracking(tracker);
-      this.remove(tracker);
+      super.remove(tracker);
     }
   };
 }

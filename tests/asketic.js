@@ -32,47 +32,27 @@ exports.default = () => {
         client.tracking = _update;
         const asketic = new asketic_1.Asketic();
         const flow = {
+            query: test_1.query,
             next: asket_1.asket,
             resolver: (flow) => __awaiter(this, void 0, void 0, function* () {
                 if (flow.name === 'a' && flow.env.type === 'root') {
                     const tracker = new tracker_1.Tracker();
                     tracker.idField = 'id';
                     tracker.query = flow;
-                    client.track(tracker);
+                    client.add(tracker);
                     return asketic.flowTracker(flow, tracker);
                 }
                 if (flow.name === 'b' && flow.env.type === 'item') {
                     const tracker = new tracker_1.Tracker();
                     tracker.idField = 'id';
                     tracker.query = flow;
-                    client.track(tracker);
+                    client.add(tracker);
                     return asketic.flowTracker(flow, tracker);
                 }
                 if (flow.env.type === 'items')
                     return asketic.flowItem(flow);
                 return asketic.flowValue(flow);
             }),
-            query: {
-                schema: {
-                    name: 'a',
-                    options: {
-                        query: 1,
-                    },
-                    fields: {
-                        id: {},
-                        num: {},
-                        equal: {
-                            name: 'b',
-                            options: {
-                                query: 2,
-                            },
-                            fields: {
-                                id: {},
-                            },
-                        },
-                    },
-                },
-            },
         };
         const cursor = new cursor_1.Cursor();
         const result = yield asketic.next(flow);
@@ -84,7 +64,7 @@ exports.default = () => {
             const bundles = bundles_1.asketicChangesToBundles(changes);
             _.each(bundles, bundle => cursor.apply(bundle));
         });
-        test_1.default(cursor, () => __awaiter(this, void 0, void 0, function* () {
+        yield test_1.test(cursor, () => __awaiter(this, void 0, void 0, function* () {
             yield update([
                 { id: 1, num: 1 },
                 { id: 2, num: 2 },
@@ -143,6 +123,7 @@ exports.default = () => {
                 { id: 6, num: 6 },
             ]);
         }));
+        asketic.destroy();
     }));
 };
 //# sourceMappingURL=asketic.js.map

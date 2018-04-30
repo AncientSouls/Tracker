@@ -11,5 +11,25 @@ export interface IData {
         }[];
     }[];
 }
-declare const _default: (cursor: ICursor<ICursorEventsList>, fill: IO, insert9as3: IO, change3to5: IO, move3to6: IO, move4to3: IO, delete4: IO) => Promise<void>;
-export default _default;
+export declare const query: {
+    schema: {
+        name: string;
+        options: {
+            query: number;
+        };
+        fields: {
+            id: {};
+            num: {};
+            equal: {
+                name: string;
+                options: {
+                    query: number;
+                };
+                fields: {
+                    id: {};
+                };
+            };
+        };
+    };
+};
+export declare const test: (cursor: ICursor<ICursorEventsList>, fill: IO, insert9as3: IO, change3to5: IO, move3to6: IO, move4to3: IO, delete4: IO) => Promise<void>;

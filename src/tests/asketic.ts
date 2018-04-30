@@ -26,7 +26,7 @@ import {
   Cursor,
 } from 'ancient-cursor/lib/cursor';
 
-import test from './test';
+import { test, query } from './test';
 
 const delay = async time => new Promise(res => setTimeout(res, time));
 
@@ -53,46 +53,26 @@ export default () => {
     const asketic = new Asketic();
 
     const flow = {
+      query,
       next: asket,
       resolver: async (flow) => {
         if (flow.name === 'a' && flow.env.type === 'root') {
           const tracker = new Tracker();
           tracker.idField = 'id';
           tracker.query = flow;
-          client.track(tracker);
+          client.add(tracker);
           return asketic.flowTracker(flow, tracker);
         }
         if (flow.name === 'b' && flow.env.type === 'item') {
           const tracker = new Tracker();
           tracker.idField = 'id';
           tracker.query = flow;
-          client.track(tracker);
+          client.add(tracker);
           return asketic.flowTracker(flow, tracker);
         }
         // msut be writed in asketic compatibly resolver
         if (flow.env.type === 'items') return asketic.flowItem(flow);
         return asketic.flowValue(flow);
-      },
-      query: {
-        schema: {
-          name: 'a',
-          options: {
-            query: 1,
-          },
-          fields: {
-            id: {},
-            num: {},
-            equal: {
-              name: 'b',
-              options: {
-                query: 2,
-              },
-              fields: {
-                id: {},
-              },
-            },
-          },
-        },
       },
     };
 
@@ -111,7 +91,7 @@ export default () => {
       _.each(bundles, bundle => cursor.apply(bundle));
     };
     
-    test(
+    await test(
       cursor,
       async () => {
         await update([
@@ -178,5 +158,7 @@ export default () => {
         ]);
       },
     );
+    
+    asketic.destroy();
   });
 };

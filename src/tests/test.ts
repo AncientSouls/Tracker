@@ -36,7 +36,29 @@ export interface IData {
   a: { b: string; c: number; d: { b: string; }[] }[];
 }
 
-export default async (
+export const query = {
+  schema: {
+    name: 'a',
+    options: {
+      query: 1,
+    },
+    fields: {
+      id: {},
+      num: {},
+      equal: {
+        name: 'b',
+        options: {
+          query: 2,
+        },
+        fields: {
+          id: {},
+        },
+      },
+    },
+  },
+};
+
+export const test = async (
   cursor: TCursor,
   fill: IO, // 12[(34)]56
   insert9as3: IO, // 12[(39)]456
