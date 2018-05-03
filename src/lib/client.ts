@@ -80,6 +80,15 @@ export function mixin<T extends TClass<IInstance>>(
       await this.untracking(tracker);
       super.remove(tracker);
     }
+
+    async destroy() {
+      let t;
+      const trackers = _.clone(this.list.nodes);
+      for (t in trackers) {
+        await this.remove(trackers[t]);
+      }
+      await super.destroy();
+    }
   };
 }
 
