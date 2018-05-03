@@ -1,6 +1,6 @@
 {
   "name": "ancient-tracker",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Any database hierarchical queries and subscriptions.",
   "bugs": "https://github.com/AncientSouls/Tracker/issues",
   "repository": "AncientSouls/Tracker",
@@ -16,7 +16,7 @@
   "dependencies": {
     "ancient-asket": "^0.1.5",
     "ancient-cursor": "^0.2.8",
-    "ancient-mixins": "^0.0.13",
+    "ancient-mixins": "^0.0.14",
     "lodash": "^4.17.10"
   },
   "devDependencies": {
