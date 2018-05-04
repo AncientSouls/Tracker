@@ -64,6 +64,11 @@ export function mixin<T extends TClass<IInstance>>(
         this.emit('stop', { client: this });
         await this.stopping();
         this.emit('stopped', { client: this });
+        const trackers = _.clone(this.list.nodes);
+        let t;
+        for (t in trackers) {
+          await this.remove(trackers[t]);
+        }
       }
     }
 

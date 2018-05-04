@@ -1,9 +1,7 @@
 require('source-map-support').install();
 
-import tracker from './tracker';
-import asketic from './asketic';
-
 describe('AncientSouls/Tracker:', () => {
-  tracker();
-  asketic();
+  require('./client').default();
+  require('./tracker').default();
+  require('./asketic').default();
 });
